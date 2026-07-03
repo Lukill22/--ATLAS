@@ -1,24 +1,24 @@
 # ROADMAP de Atlas
 
-## Sprint 0 — Base inicial
+## Sprint 0 ï¿½ Base inicial
 
 - Establecer estructura de proyecto.
-- Crear documentación base en español.
-- Definir la primera decisión arquitectural (ADR).
-- Preparar espacio para pruebas y módulos futuros.
+- Crear documentacion base en espaï¿½ol.
+- Definir la primera decisiï¿½n arquitectural (ADR).
+- Preparar espacio para pruebas y mï¿½dulos futuros.
 
-## Sprint 1 — Primer asistente básico
+## Sprint 1 ï¿½ Primer asistente bï¿½sico
 
-- Definir y construir un núcleo de asistente ligero.
-- Permitir entrantes simples de usuario y respuestas básicas.
-- Mantener la arquitectura modular para añadir memoria, automatización y agentes después.
-- Validar la experiencia de desarrollo con un prototipo mínimo.
+- Definir y construir un nï¿½cleo de asistente ligero.
+- Permitir entrantes simples de usuario y respuestas bï¿½sicas.
+- Mantener la arquitectura modular para aï¿½adir memoria, automatizaciï¿½n y agentes despuï¿½s.
+- Validar la experiencia de desarrollo con un prototipo mï¿½nimo.
 
 ## Futuro
 
 - Memoria personal.
 - Asistente conversacional.
-- Organización de archivos.
-- Integración con modelos de IA.
+- Organizaciï¿½n de archivos.
+- Integraciï¿½n con modelos de IA.
 - Automatizaciones controladas.
-- Gestión de permisos y seguridad.
+- Gestiï¿½n de permisos y seguridad.
