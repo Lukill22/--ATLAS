@@ -28,3 +28,4 @@ Thumbs.db
 # Datos de proyecto
 /data/*.sqlite
 /data/*.db
+/data/entries.jsonl
