@@ -3,9 +3,39 @@ from pathlib import Path
 import json
 
 
-# Ruta del archivo donde Atlas guarda los registros.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_FILE = PROJECT_ROOT / "data" / "entries.jsonl"
+
+
+def parse_expense(text: str) -> dict | None:
+    """Extrae monto y descripción desde un texto de gasto.
+
+    Formato esperado:
+    gasto: 15000 nafta
+    """
+
+    content = text.removeprefix("gasto:").strip()
+
+    if not content:
+        return None
+
+    parts = content.split(maxsplit=1)
+
+    if len(parts) == 0:
+        return None
+
+    amount_text = parts[0].replace(".", "").replace(",", "")
+
+    if not amount_text.isdigit():
+        return None
+
+    amount = int(amount_text)
+    description = parts[1] if len(parts) > 1 else "Sin descripción"
+
+    return {
+        "amount": amount,
+        "description": description,
+    }
 
 
 def save_entry(entry_type: str, text: str) -> dict:
@@ -16,6 +46,17 @@ def save_entry(entry_type: str, text: str) -> dict:
         "type": entry_type,
         "text": text,
     }
+
+    if entry_type == "gasto":
+        expense_data = parse_expense(text)
+
+        if expense_data is None:
+            raise ValueError(
+                "No pude detectar el monto del gasto. "
+                "Usá este formato: gasto: 15000 nafta"
+            )
+
+        entry.update(expense_data)
 
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -83,6 +124,12 @@ def normalize_list_type(command: str) -> str | None:
     return filters.get(command)
 
 
+def format_money(amount: int) -> str:
+    """Formatea un número como monto en pesos argentinos."""
+
+    return f"${amount:,.0f}".replace(",", ".")
+
+
 def show_entries(entry_type: str | None = None) -> None:
     """Muestra los últimos registros, con filtro opcional."""
 
@@ -113,10 +160,38 @@ def show_entries(entry_type: str | None = None) -> None:
         category = entry.get("type", "nota")
         text = entry.get("text", "")
 
-        print(f"{index}. [{category}] {text}")
+        if category == "gasto" and "amount" in entry:
+            amount = format_money(entry["amount"])
+            description = entry.get("description", "Sin descripción")
+            print(f"{index}. [gasto] {amount} - {description}")
+        else:
+            print(f"{index}. [{category}] {text}")
+
         print(f"   Fecha: {created_at}")
 
     print()
+
+
+def show_total_expenses() -> None:
+    """Calcula y muestra el total de gastos registrados."""
+
+    entries = load_entries()
+
+    expenses = [
+        entry
+        for entry in entries
+        if entry.get("type") == "gasto"
+    ]
+
+    total = 0
+
+    for expense in expenses:
+        amount = expense.get("amount")
+
+        if isinstance(amount, int | float):
+            total += amount
+
+    print(f"Atlas: Gastaste {format_money(total)} en total.")
 
 
 def show_help() -> None:
@@ -137,6 +212,8 @@ Comandos disponibles:
   listar ideas
   listar notas
 
+  total gastos
+
   ayuda
   salir
 """
@@ -146,7 +223,7 @@ Comandos disponibles:
 def main() -> None:
     """Ejecuta la interfaz principal de Atlas."""
 
-    print("Atlas v0.1 - Captura rápida")
+    print("Atlas v0.2 - Gastos estructurados")
     print("Escribí 'ayuda' para ver los comandos.\n")
 
     while True:
@@ -168,6 +245,10 @@ def main() -> None:
             show_entries()
             continue
 
+        if command == "total gastos":
+            show_total_expenses()
+            continue
+
         entry_type_filter = normalize_list_type(command)
 
         if entry_type_filter:
@@ -175,9 +256,13 @@ def main() -> None:
             continue
 
         entry_type = detect_entry_type(user_input)
-        save_entry(entry_type, user_input)
 
-        print(f"Atlas: Guardado como {entry_type}.")
+        try:
+            save_entry(entry_type, user_input)
+            print(f"Atlas: Guardado como {entry_type}.")
+
+        except ValueError as error:
+            print(f"Atlas: {error}")
 
 
 if __name__ == "__main__":
