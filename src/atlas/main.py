@@ -2,7 +2,6 @@ from datetime import datetime
 from pathlib import Path
 import json
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_FILE = PROJECT_ROOT / "data" / "entries.jsonl"
 
@@ -86,10 +85,7 @@ def load_entries() -> list[dict]:
                 entries.append(entry)
 
             except json.JSONDecodeError:
-                print(
-                    f"Atlas: No pude leer el registro "
-                    f"de la línea {line_number}."
-                )
+                print(f"Atlas: No pude leer el registro " f"de la línea {line_number}.")
 
     return entries
 
@@ -136,18 +132,11 @@ def show_entries(entry_type: str | None = None) -> None:
     entries = load_entries()
 
     if entry_type is not None:
-        entries = [
-            entry
-            for entry in entries
-            if entry.get("type") == entry_type
-        ]
+        entries = [entry for entry in entries if entry.get("type") == entry_type]
 
     if not entries:
         if entry_type:
-            print(
-                f"Atlas: No encontré registros "
-                f"de tipo '{entry_type}'."
-            )
+            print(f"Atlas: No encontré registros " f"de tipo '{entry_type}'.")
         else:
             print("Atlas: Todavía no hay registros guardados.")
 
@@ -177,11 +166,7 @@ def show_total_expenses() -> None:
 
     entries = load_entries()
 
-    expenses = [
-        entry
-        for entry in entries
-        if entry.get("type") == "gasto"
-    ]
+    expenses = [entry for entry in entries if entry.get("type") == "gasto"]
 
     total = 0
 
@@ -197,8 +182,7 @@ def show_total_expenses() -> None:
 def show_help() -> None:
     """Muestra los comandos disponibles."""
 
-    print(
-        """
+    print("""
 Comandos disponibles:
 
   gasto: 15000 nafta
@@ -216,8 +200,7 @@ Comandos disponibles:
 
   ayuda
   salir
-"""
-    )
+""")
 
 
 def main() -> None:
