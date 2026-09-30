@@ -1,9 +1,34 @@
 from datetime import datetime
 from pathlib import Path
 import json
+import os
+import re
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DATA_FILE = PROJECT_ROOT / "data" / "entries.jsonl"
+
+# ATLAS_DATA_FILE permite redirigir el archivo de datos (para pruebas o
+# smoke tests) sin tocar los registros reales del usuario.
+DATA_FILE = Path(
+    os.environ.get("ATLAS_DATA_FILE", PROJECT_ROOT / "data" / "entries.jsonl")
+)
+
+# Un monto es una secuencia de dígitos, opcionalmente agrupada de a 3 con
+# "." o "," como separador de miles (ej. "15000", "15.000", "1.500.000").
+_AMOUNT_PATTERN = re.compile(r"^\d{1,3}([.,]\d{3})*$|^\d+$")
+
+
+def _parse_amount(amount_text: str) -> int | None:
+    """Convierte un texto de monto a entero, o None si no es válido.
+
+    Solo acepta "." o "," como separador de miles. Un número como "15.5"
+    no se acepta: es ambiguo (¿mil quinientos truncado? ¿15 con 5 decimales?)
+    y Atlas trabaja siempre en pesos enteros.
+    """
+
+    if not _AMOUNT_PATTERN.match(amount_text):
+        return None
+
+    return int(amount_text.replace(".", "").replace(",", ""))
 
 
 def parse_expense(text: str) -> dict | None:
@@ -13,7 +38,10 @@ def parse_expense(text: str) -> dict | None:
     gasto: 15000 nafta
     """
 
-    content = text.removeprefix("gasto:").strip()
+    if not text.lower().startswith("gasto:"):
+        return None
+
+    content = text[len("gasto:") :].strip()
 
     if not content:
         return None
@@ -23,12 +51,11 @@ def parse_expense(text: str) -> dict | None:
     if len(parts) == 0:
         return None
 
-    amount_text = parts[0].replace(".", "").replace(",", "")
+    amount = _parse_amount(parts[0])
 
-    if not amount_text.isdigit():
+    if amount is None:
         return None
 
-    amount = int(amount_text)
     description = parts[1] if len(parts) > 1 else "Sin descripción"
 
     return {

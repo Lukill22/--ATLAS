@@ -1,1 +1,2 @@
-# Sin dependencias en Sprint 0
+# Atlas no tiene dependencias de runtime: usa solo la librería estándar de Python.
+# Para desarrollo (formateo, pruebas), ver requirements-dev.txt.
