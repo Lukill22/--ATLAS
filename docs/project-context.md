@@ -78,10 +78,13 @@ permite listarlas o filtrarlas por tipo.
 Atlas separa monto y descripción, muestra gastos con un formato legible y calcula
 el total mediante `total gastos`.
 
-### Sprint 2.1: limpieza profesional — en desarrollo
+### Sprint 2.1: limpieza profesional — terminado
 
-El objetivo es mejorar formato, pruebas y documentación sin agregar funciones.
-El próximo paso recomendado es cerrar esta etapa antes de definir el Sprint 3.
+Se formateó `main.py` con Black, se corrigieron dos bugs del parser de gastos
+(mayúsculas y montos decimales ambiguos), se agregaron 19 pruebas automatizadas,
+se unificó la documentación a `docs/` en UTF-8, y se limpió el historial de Git
+para quitar `data/entries.jsonl`. El próximo paso es definir el alcance del
+Sprint 3.
 
 ## Funciones actuales
 

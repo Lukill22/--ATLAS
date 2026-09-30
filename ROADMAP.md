@@ -20,7 +20,7 @@
 - Agregar el comando `total gastos`.
 - Mostrar los gastos con un formato legible ($15.000 en vez del texto crudo).
 
-## Sprint 2.1 — Limpieza profesional (en desarrollo)
+## Sprint 2.1 — Limpieza profesional (terminado)
 
 Objetivo: mejorar la calidad del proyecto sin agregar nuevas funciones.
 
@@ -33,8 +33,8 @@ Tareas:
 - [x] Limpiar el historial de Git para quitar `data/entries.jsonl`.
 - [x] Revisar y limpiar `ROADMAP.md`.
 - [x] Revisar y limpiar `CHANGELOG.md`.
-- [ ] Verificar que Atlas siga funcionando después de todos los cambios.
-- [ ] Subir los cambios a GitHub.
+- [x] Verificar que Atlas siga funcionando después de todos los cambios.
+- [x] Subir los cambios a GitHub.
 
 Criterio de terminado:
 
