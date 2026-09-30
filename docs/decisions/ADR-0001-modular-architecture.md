@@ -4,18 +4,18 @@
 
 Se necesita una base limpia para construir un asistente personal modular.
 
-## Decisi髇
+## Decisi贸n
 
-Adoptar una arquitectura modular m韓ima con un paquete Python principal (`src/atlas`) y documentaci髇 clara en `docs/`.
+Adoptar una arquitectura modular m铆nima con un paquete Python principal (`src/atlas`) y documentaci贸n clara en `docs/`.
 
 ## Razonamiento
 
-- Facilita la evoluci髇 del proyecto con nuevos m骴ulos.
+- Facilita la evoluci贸n del proyecto con nuevos m贸dulos.
 - Evita agrupar funcionalidades avanzadas en un solo componente.
 - Permite comenzar con un prototipo ligero sin dependencias externas.
 
 ## Consecuencias
 
-- Los nuevos desarrollos deber醤 incluir documentaci髇 y pruebas.
+- Los nuevos desarrollos deber谩n incluir documentaci贸n y pruebas.
 - El primer asistente debe construirse sobre este paquete base.
-- No se implementar醤 memorias, agentes o integraciones de IA en Sprint 0.
+- No se implementaron memorias, agentes o integraciones de IA en Sprint 0.

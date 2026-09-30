@@ -1,12 +1,12 @@
 # Arquitectura inicial de Atlas
 
-La arquitectura inicial est· basada en un proyecto Python modular y sencillo.
+La arquitectura inicial est√° basada en un proyecto Python modular y sencillo.
 
 Componentes clave:
 
-- `src/atlas`: paquete principal del proyecto.
-- `docs/`: documentaciÛn de visiÛn, arquitectura y decisiones.
-- `tests/`: lugar para pruebas unitarias y de integraciÛn.
-- `data/`: espacio para datos o artefactos controlados por el proyecto.
+- `src/atlas`: paquete principal del proyecto. Por ahora toda la l√≥gica vive en `main.py`; se dividir√° en m√≥dulos cuando exista una raz√≥n concreta de mantenimiento (ver ADR-0001).
+- `docs/`: documentaci√≥n de visi√≥n, arquitectura y decisiones.
+- `tests/`: pruebas unitarias de las funciones puras del paquete.
+- `data/`: espacio para datos locales del usuario. No se versiona (ver `.gitignore`).
 
 El enfoque es mantener cada capa separada y evitar dependencias externas innecesarias hasta que exista una necesidad clara.

@@ -1,27 +1,51 @@
 # ROADMAP de Atlas
 
-## Sprint 0  Base inicial
+## Sprint 0 — Base inicial (terminado)
 
 - Establecer estructura de proyecto.
-- Crear documentacion base en español.
-- Definir la primera decisio   n arquitectural (ADR).
-- Preparar espacio para pruebas y modulos futuros.
+- Crear documentación base en español.
+- Definir la primera decisión arquitectural (ADR).
+- Preparar espacio para pruebas y módulos futuros.
 
-## Sprint 1  Primer asistente basico
+## Sprint 1 — Primer asistente básico (terminado)
 
-- Definir y construir un nucleo de asistente ligero.
-- Permitir entrantes simples de usuario y respuestas basicas.
-- Mantener la arquitectura modular para añadir memoria, automatizacion y agentes despues.
-- Validar la experiencia de desarrollo con un prototipo minimo.
+- Definir y construir un núcleo de asistente ligero.
+- Permitir entradas simples de usuario y respuestas básicas.
+- Mantener la arquitectura modular para añadir memoria, automatización y agentes después.
+- Validar la experiencia de desarrollo con un prototipo mínimo.
 
-## Futuro
+## Sprint 2 — Gastos estructurados (terminado)
 
-- Memoria personal.
-- Asistente conversacional.
-- Organizacion de archivos.
-- Integracion con modelos de IA.
-- Automatizaciones controladas.
-- Gestion de permisos y seguridad.
+- Separar monto y descripción al registrar un gasto (`gasto: 15000 nafta`).
+- Agregar el comando `total gastos`.
+- Mostrar los gastos con un formato legible ($15.000 en vez del texto crudo).
+
+## Sprint 2.1 — Limpieza profesional (en desarrollo)
+
+Objetivo: mejorar la calidad del proyecto sin agregar nuevas funciones.
+
+Tareas:
+
+- [x] Formatear `src/atlas/main.py` con Black.
+- [x] Corregir los bugs del parser de gastos detectados en la revisión (mayúsculas, montos decimales ambiguos).
+- [x] Agregar pruebas automatizadas para las funciones de `main.py`.
+- [x] Unificar la carpeta de documentación a `docs/` (antes `Docs/`).
+- [x] Limpiar el historial de Git para quitar `data/entries.jsonl`.
+- [x] Revisar y limpiar `ROADMAP.md`.
+- [x] Revisar y limpiar `CHANGELOG.md`.
+- [ ] Verificar que Atlas siga funcionando después de todos los cambios.
+- [ ] Subir los cambios a GitHub.
+
+Criterio de terminado:
+
+- El código está formateado correctamente y sin bugs conocidos.
+- Existen pruebas automatizadas para la lógica principal.
+- La documentación está ordenada y en UTF-8.
+- Atlas sigue funcionando con gastos estructurados.
+- GitHub refleja los cambios del sprint.
+
+---
+
 ## Futuro de Atlas
 
 Esta sección reúne posibles líneas de crecimiento para Atlas. No todas estas ideas se implementarán de inmediato. Cada una deberá ganarse su lugar en un sprint según tres criterios:
@@ -36,61 +60,30 @@ La visión de Atlas es crecer de forma gradual, evitando agregar complejidad inn
 
 ## Futuro cercano
 
-### 1. Mejorar la captura rápida
+### 1. Corregir y editar registros
 
 **Qué cumpliría:**
-Permitiría que Atlas sea más útil como anotador diario, registrando ideas, gastos, tareas y notas de forma simple.
+Permitiría borrar o corregir una entrada guardada por error, y marcar una tarea como hecha.
 
 **Por qué es importante:**
-La captura rápida es la primera función real de Atlas. Si esta base funciona bien, después se puede usar para memoria, organización, análisis y automatización.
+Hoy un error de tipeo o una tarea completada quedan para siempre. Sin esto, Atlas acumula ruido en vez de información útil.
 
 ---
 
-### 2. Gastos estructurados
+### 2. Comandos de consulta con filtro de tiempo
 
 **Qué cumpliría:**
-Permitirá que Atlas no solo guarde un gasto como texto, sino que entienda el monto y la descripción.
-
-Ejemplo:
-
-```text
-gasto: 15000 nafta
-```
-
-Debería convertirse en:
-
-```text
-Monto: 15000
-Descripción: nafta
-```
+Permitirá preguntas como `total gastos este mes` o `listar tareas de hoy`, en vez de solo totales acumulados de todo el tiempo.
 
 **Por qué es importante:**
-Es una función concreta y útil para el día a día. Ayuda a resolver un problema real de organización financiera sin construir todavía un sistema financiero complejo.
+"Cuánto gasté este mes" es la pregunta más común de un registro de gastos personal, y hoy Atlas no la puede responder aunque ya guarda la fecha de cada entrada.
 
 ---
 
-### 3. Comandos de consulta
+### 3. Memoria local simple
 
 **Qué cumpliría:**
-Permitirá pedirle a Atlas información que ya fue guardada.
-
-Ejemplos:
-
-```text
-listar gastos
-total gastos
-listar tareas
-```
-
-**Por qué es importante:**
-Guardar información no alcanza. Atlas también debe poder recuperarla y mostrarla de forma útil. Esta función empieza a convertirlo en una memoria práctica.
-
----
-
-### 4. Memoria local simple
-
-**Qué cumpliría:**
-Permitirá que Atlas conserve información importante de manera persistente en la computadora.
+Permitirá que Atlas conserve información importante de manera persistente en la computadora, más allá del registro plano actual.
 
 **Por qué es importante:**
 La memoria es una de las bases del proyecto. Sin memoria, Atlas sería solo una herramienta momentánea. Con memoria, empieza a convertirse en un sistema que acumula contexto.
@@ -99,7 +92,7 @@ La memoria es una de las bases del proyecto. Sin memoria, Atlas sería solo una 
 
 ## Futuro medio
 
-### 5. Asistente conversacional
+### 4. Asistente conversacional
 
 **Qué cumpliría:**
 Permitirá interactuar con Atlas de una manera más natural, no solo mediante comandos rígidos.
@@ -109,7 +102,7 @@ Atlas no busca ser solo un programa de terminal. A largo plazo debe poder conver
 
 ---
 
-### 6. Módulo de estudio
+### 5. Módulo de estudio
 
 **Qué cumpliría:**
 Ayudará a organizar temas de estudio, registrar avances, sugerir repasos y transformar objetivos grandes en tareas pequeñas.
@@ -119,7 +112,7 @@ Uno de los objetivos principales de Atlas es potenciar el aprendizaje. Este mód
 
 ---
 
-### 7. Organización de archivos
+### 6. Organización de archivos
 
 **Qué cumpliría:**
 Permitirá que Atlas ayude a ordenar carpetas, buscar documentos y clasificar archivos locales.
@@ -129,7 +122,7 @@ Es una función alineada con el objetivo de organización. Sin embargo, debe imp
 
 ---
 
-### 8. Integración con modelos de IA
+### 7. Integración con modelos de IA
 
 **Qué cumpliría:**
 Permitirá que Atlas use modelos como ChatGPT, Claude o modelos locales para interpretar texto, resumir información, clasificar notas y asistir en decisiones.
@@ -139,7 +132,7 @@ La IA será una parte fundamental del proyecto, pero no debe ser lo primero. Ant
 
 ---
 
-### 9. Reportes simples
+### 8. Reportes simples
 
 **Qué cumpliría:**
 Permitirá generar resúmenes sobre gastos, tareas, ideas o hábitos registrados.
@@ -161,7 +154,7 @@ Los reportes convierten datos sueltos en información útil. Esta función ayuda
 
 ## Futuro lejano
 
-### 10. Automatizaciones controladas
+### 9. Automatizaciones controladas
 
 **Qué cumpliría:**
 Permitirá que Atlas ejecute acciones en la computadora, como crear carpetas, ordenar archivos o preparar documentos.
@@ -171,7 +164,7 @@ Esta es una de las ideas más potentes del proyecto, pero también una de las m�
 
 ---
 
-### 11. Gestión de permisos y seguridad
+### 10. Gestión de permisos y seguridad
 
 **Qué cumpliría:**
 Definirá qué puede hacer Atlas, qué no puede hacer y qué acciones necesitan autorización del usuario.
@@ -181,7 +174,7 @@ Si Atlas va a interactuar con la computadora, necesita límites claros. Esta cap
 
 ---
 
-### 12. Integración con herramientas externas
+### 11. Integración con herramientas externas
 
 **Qué cumpliría:**
 Permitirá conectar Atlas con herramientas como Obsidian, Notion, calendarios u otros sistemas de organización.
@@ -191,7 +184,7 @@ Estas integraciones pueden hacer que Atlas sea mucho más útil, pero no deberí
 
 ---
 
-### 13. Interacción por voz
+### 12. Interacción por voz
 
 **Qué cumpliría:**
 Permitirá usar Atlas sin estar frente a la computadora, por ejemplo desde el auto o mientras se realizan otras actividades.
@@ -201,7 +194,7 @@ La voz puede ser muy valiosa para capturar ideas rápidamente. Pero primero Atla
 
 ---
 
-### 14. Interfaz gráfica o aplicación propia
+### 13. Interfaz gráfica o aplicación propia
 
 **Qué cumpliría:**
 Permitirá usar Atlas de forma más cómoda que desde la terminal.
@@ -211,7 +204,7 @@ Una interfaz visual puede mejorar mucho la experiencia, pero no debería ser pri
 
 ---
 
-### 15. Sistema de agentes especializados
+### 14. Sistema de agentes especializados
 
 **Qué cumpliría:**
 Permitirá dividir Atlas en agentes o módulos con responsabilidades específicas, por ejemplo:
@@ -224,4 +217,3 @@ Permitirá dividir Atlas en agentes o módulos con responsabilidades específica
 
 **Por qué es importante:**
 Esta idea puede hacer que Atlas crezca mucho, pero solo tiene sentido cuando ya existan suficientes funciones como para justificar esa separación.
-

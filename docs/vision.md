@@ -1,7 +1,7 @@
-# Visi髇 de Atlas
+# Visi贸n de Atlas
 
-Atlas es un asistente personal modular dise馻do para ayudar en el pensamiento, la organizaci髇 y la acci髇.
+Atlas es un asistente personal modular dise帽ado para ayudar en el pensamiento, la organizaci贸n y la acci贸n.
 
 No se busca reemplazar la toma de decisiones del usuario, sino potenciar su capacidad para aprender, organizarse y convertir ideas en acciones.
 
-En esta primera etapa, la visi髇 se mantiene simple: construir una base s髄ida y expandible.
+En esta primera etapa, la visi贸n se mantiene simple: construir una base s贸lida y expandible.
