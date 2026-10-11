@@ -4,12 +4,42 @@ No cubren `main()` (el loop interactivo con `input`/`print`) porque mezcla
 E/S con lógica; eso queda para cuando valga la pena separarlo.
 """
 
+import json
+import tempfile
+from contextlib import contextmanager
+from datetime import date
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+import atlas.main as atlas_main
 from atlas.main import (
+    build_corrected_text,
+    calculate_balance,
     detect_entry_type,
+    detect_probable_typo,
     format_money,
+    load_entries,
     normalize_list_type,
     parse_expense,
+    parse_income,
+    save_entry,
 )
+
+
+@contextmanager
+def archivo_temporal():
+    """Redirige DATA_FILE a un archivo temporal durante la prueba.
+
+    Así las pruebas de guardado y lectura nunca tocan `data/entries.jsonl`.
+    """
+
+    with tempfile.TemporaryDirectory() as carpeta:
+        ruta = Path(carpeta) / "entries.jsonl"
+
+        with patch.object(atlas_main, "DATA_FILE", ruta):
+            yield ruta
 
 
 class TestParseExpense:
@@ -75,6 +105,71 @@ class TestDetectEntryType:
         assert detect_entry_type("cualquier cosa") == "nota"
 
 
+class TestDetectProbableTypo:
+    # Bug real: "gastos: 400", "Gastos: 200", "listar gasto", etc. se
+    # guardaban como nota sin ningún aviso porque no matcheaban el prefijo
+    # exacto. detect_entry_type sigue exigiendo "gasto:" tal cual (eso no
+    # cambia), pero ahora se puede avisar del probable error de tipeo.
+
+    def test_sin_dos_puntos_sugiere_el_formato(self):
+        assert detect_probable_typo("gasto 15000 nafta") == "gasto:"
+
+    def test_en_plural_sugiere_el_formato(self):
+        assert detect_probable_typo("gastos: 400") == "gasto:"
+
+    def test_no_distingue_mayusculas(self):
+        assert detect_probable_typo("Gastos 200") == "gasto:"
+
+    def test_ingreso_sin_dos_puntos(self):
+        assert detect_probable_typo("ingreso 5000 propina") == "ingreso:"
+
+    def test_tarea_en_plural(self):
+        assert detect_probable_typo("tareas comprar pan") == "tarea:"
+
+    def test_texto_sin_relacion_no_sugiere_nada(self):
+        assert detect_probable_typo("se me ocurrió algo") is None
+
+    def test_prefijo_exacto_tambien_lo_reconoce(self):
+        # No hace diferencia: si ya está bien escrito, detect_entry_type lo
+        # toma como gasto de todos modos y este aviso nunca se usa.
+        assert detect_probable_typo("gasto: 15000 nafta") == "gasto:"
+
+    def test_typo_con_letras_invertidas(self):
+        assert detect_probable_typo("gsato 15000 nafta") == "gasto:"
+
+    def test_typo_con_letra_de_mas(self):
+        assert detect_probable_typo("ingreeso 5000 propina") == "ingreso:"
+
+    def test_typo_corto_en_tarea(self):
+        assert detect_probable_typo("trea comprar pan") == "tarea:"
+
+    def test_palabras_comunes_no_disparan_el_aviso(self):
+        assert detect_probable_typo("hola como estas") is None
+        assert detect_probable_typo("ayuda con esto") is None
+        assert detect_probable_typo("nota para mi mismo") is None
+
+    def test_limitacion_conocida_palabras_cortas_parecidas(self):
+        # "área" se parece a "tarea" por pura casualidad de letras, y acá
+        # da un falso positivo. Queda documentado a propósito: el costo es
+        # bajo porque Atlas pregunta antes de guardar (un "no" lo resuelve),
+        # y subir el umbral de similitud para evitarlo pierde typos reales
+        # como "gsato" o "ingreeso" (ver tests de arriba).
+        assert detect_probable_typo("area de estudio") == "tarea:"
+
+
+class TestBuildCorrectedText:
+    def test_reemplaza_la_primera_palabra_por_el_prefijo(self):
+        assert (
+            build_corrected_text("gasto 15000 nafta", "gasto:") == "gasto: 15000 nafta"
+        )
+
+    def test_reemplaza_aunque_la_palabra_original_tenga_dos_puntos(self):
+        assert build_corrected_text("gastos: 400", "gasto:") == "gasto: 400"
+
+    def test_sin_resto_no_deja_espacio_colgando(self):
+        assert build_corrected_text("gasto", "gasto:") == "gasto:"
+
+
 class TestNormalizeListType:
     def test_comando_valido(self):
         assert normalize_list_type("listar gastos") == "gasto"
@@ -92,3 +187,182 @@ class TestFormatMoney:
 
     def test_formato_cero(self):
         assert format_money(0) == "$0"
+
+
+class TestParseIncome:
+    def test_monto_simple(self):
+        assert parse_income("ingreso: 100000 uber") == {
+            "amount": 100000,
+            "description": "uber",
+        }
+
+    def test_monto_con_separador_de_miles(self):
+        assert parse_income("ingreso: 100.000 uber") == {
+            "amount": 100000,
+            "description": "uber",
+        }
+
+    def test_prefijo_en_mayusculas_tambien_parsea(self):
+        assert parse_income("Ingreso: 5000 propina") == {
+            "amount": 5000,
+            "description": "propina",
+        }
+
+    def test_sin_descripcion_usa_valor_por_defecto(self):
+        assert parse_income("ingreso: 5000")["description"] == "Sin descripción"
+
+    def test_monto_ambiguo_tipo_decimal_se_rechaza(self):
+        assert parse_income("ingreso: 15.5 propina") is None
+
+    def test_monto_negativo_se_rechaza(self):
+        assert parse_income("ingreso: -500 uber") is None
+
+    def test_monto_no_numerico_se_rechaza(self):
+        assert parse_income("ingreso: abc uber") is None
+
+    def test_sin_contenido_se_rechaza(self):
+        assert parse_income("ingreso:") is None
+
+    def test_un_gasto_no_se_parsea_como_ingreso(self):
+        assert parse_income("gasto: 15000 nafta") is None
+
+
+class TestIngresosEnComandos:
+    def test_detecta_ingreso(self):
+        assert detect_entry_type("ingreso: 100000 uber") == "ingreso"
+
+    def test_detecta_ingreso_sin_importar_mayusculas(self):
+        assert detect_entry_type("Ingreso: 100000 uber") == "ingreso"
+
+    def test_listar_ingresos(self):
+        assert normalize_list_type("listar ingresos") == "ingreso"
+
+
+class TestFormatMoneyNegativo:
+    def test_balance_negativo_muestra_el_signo_adelante(self):
+        assert format_money(-5000) == "-$5.000"
+
+    def test_negativo_con_miles(self):
+        assert format_money(-1500000) == "-$1.500.000"
+
+
+class TestCalculateBalance:
+    HOY = date(2026, 10, 11)
+
+    def test_sin_registros_da_cero(self):
+        assert calculate_balance([], self.HOY) == {
+            "income": 0,
+            "expenses": 0,
+            "balance": 0,
+        }
+
+    def test_suma_ingresos_y_gastos_del_dia(self):
+        entries = [
+            {"created_at": "2026-10-11T09:00:00", "type": "ingreso", "amount": 100000},
+            {"created_at": "2026-10-11T12:00:00", "type": "gasto", "amount": 30000},
+            {"created_at": "2026-10-11T18:00:00", "type": "gasto", "amount": 5000},
+        ]
+
+        assert calculate_balance(entries, self.HOY) == {
+            "income": 100000,
+            "expenses": 35000,
+            "balance": 65000,
+        }
+
+    def test_ignora_registros_de_otros_dias(self):
+        entries = [
+            {"created_at": "2026-10-10T23:59:00", "type": "ingreso", "amount": 90000},
+            {"created_at": "2026-10-11T10:00:00", "type": "gasto", "amount": 1000},
+            {"created_at": "2026-10-12T00:00:00", "type": "gasto", "amount": 7000},
+        ]
+
+        assert calculate_balance(entries, self.HOY) == {
+            "income": 0,
+            "expenses": 1000,
+            "balance": -1000,
+        }
+
+    def test_balance_puede_ser_negativo(self):
+        entries = [
+            {"created_at": "2026-10-11T08:00:00", "type": "ingreso", "amount": 10000},
+            {"created_at": "2026-10-11T09:00:00", "type": "gasto", "amount": 25000},
+        ]
+
+        assert calculate_balance(entries, self.HOY)["balance"] == -15000
+
+    def test_ignora_tareas_notas_y_gastos_viejos_sin_monto(self):
+        # Los gastos guardados antes del Sprint 2 no tienen "amount".
+        entries = [
+            {"created_at": "2026-10-11T08:00:00", "type": "tarea", "text": "tarea: x"},
+            {"created_at": "2026-10-11T09:00:00", "type": "gasto", "text": "gasto: 5"},
+            {"created_at": "2026-10-11T10:00:00", "type": "nota", "text": "hola"},
+        ]
+
+        assert calculate_balance(entries, self.HOY)["balance"] == 0
+
+    def test_registro_sin_fecha_se_ignora(self):
+        entries = [{"type": "ingreso", "amount": 5000}]
+
+        assert calculate_balance(entries, self.HOY)["income"] == 0
+
+
+class TestGuardadoYLectura:
+    def test_guarda_un_gasto_con_monto_y_descripcion(self):
+        with archivo_temporal() as ruta:
+            entry = save_entry("gasto", "gasto: 15000 nafta")
+
+            assert entry["amount"] == 15000
+            assert entry["description"] == "nafta"
+            assert json.loads(ruta.read_text(encoding="utf-8"))["amount"] == 15000
+
+    def test_guarda_un_ingreso_con_monto_y_descripcion(self):
+        with archivo_temporal():
+            entry = save_entry("ingreso", "ingreso: 100000 uber")
+
+            assert entry["type"] == "ingreso"
+            assert entry["amount"] == 100000
+            assert entry["description"] == "uber"
+
+    def test_gasto_invalido_lanza_error_y_no_guarda_nada(self):
+        with archivo_temporal() as ruta:
+            with pytest.raises(ValueError):
+                save_entry("gasto", "gasto: abc nafta")
+
+            assert not ruta.exists()
+
+    def test_ingreso_invalido_lanza_error_y_no_guarda_nada(self):
+        with archivo_temporal() as ruta:
+            with pytest.raises(ValueError):
+                save_entry("ingreso", "ingreso: abc uber")
+
+            assert not ruta.exists()
+
+    def test_una_tarea_no_lleva_monto(self):
+        with archivo_temporal():
+            entry = save_entry("tarea", "tarea: comprar arroz")
+
+            assert "amount" not in entry
+
+    def test_lee_lo_que_se_guardo_en_orden(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 pan")
+            save_entry("ingreso", "ingreso: 20000 uber")
+
+            tipos = [entry["type"] for entry in load_entries()]
+
+            assert tipos == ["gasto", "ingreso"]
+
+    def test_sin_archivo_devuelve_lista_vacia(self):
+        with archivo_temporal():
+            assert load_entries() == []
+
+    def test_una_linea_corrupta_no_rompe_la_lectura(self):
+        with archivo_temporal() as ruta:
+            save_entry("gasto", "gasto: 5000 pan")
+
+            with ruta.open("a", encoding="utf-8") as file:
+                file.write("esto no es json\n")
+
+            save_entry("gasto", "gasto: 3000 cafe")
+
+            assert len(load_entries()) == 2

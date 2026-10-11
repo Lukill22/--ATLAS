@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
+import difflib
 import json
 import os
 import re
@@ -31,25 +32,21 @@ def _parse_amount(amount_text: str) -> int | None:
     return int(amount_text.replace(".", "").replace(",", ""))
 
 
-def parse_expense(text: str) -> dict | None:
-    """Extrae monto y descripción desde un texto de gasto.
+def _parse_amount_entry(text: str, prefix: str) -> dict | None:
+    """Extrae monto y descripción de un texto con la forma "<prefijo> monto desc".
 
-    Formato esperado:
-    gasto: 15000 nafta
+    Lo comparten gastos e ingresos: ambos tienen el mismo formato.
     """
 
-    if not text.lower().startswith("gasto:"):
+    if not text.lower().startswith(prefix):
         return None
 
-    content = text[len("gasto:") :].strip()
+    content = text[len(prefix) :].strip()
 
     if not content:
         return None
 
     parts = content.split(maxsplit=1)
-
-    if len(parts) == 0:
-        return None
 
     amount = _parse_amount(parts[0])
 
@@ -62,6 +59,26 @@ def parse_expense(text: str) -> dict | None:
         "amount": amount,
         "description": description,
     }
+
+
+def parse_expense(text: str) -> dict | None:
+    """Extrae monto y descripción desde un texto de gasto.
+
+    Formato esperado:
+    gasto: 15000 nafta
+    """
+
+    return _parse_amount_entry(text, "gasto:")
+
+
+def parse_income(text: str) -> dict | None:
+    """Extrae monto y descripción desde un texto de ingreso.
+
+    Formato esperado:
+    ingreso: 100000 uber
+    """
+
+    return _parse_amount_entry(text, "ingreso:")
 
 
 def save_entry(entry_type: str, text: str) -> dict:
@@ -83,6 +100,17 @@ def save_entry(entry_type: str, text: str) -> dict:
             )
 
         entry.update(expense_data)
+
+    if entry_type == "ingreso":
+        income_data = parse_income(text)
+
+        if income_data is None:
+            raise ValueError(
+                "No pude detectar el monto del ingreso. "
+                "Usá este formato: ingreso: 100000 uber"
+            )
+
+        entry.update(income_data)
 
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -125,6 +153,9 @@ def detect_entry_type(text: str) -> str:
     if lowered_text.startswith("gasto:"):
         return "gasto"
 
+    if lowered_text.startswith("ingreso:"):
+        return "ingreso"
+
     if lowered_text.startswith("tarea:"):
         return "tarea"
 
@@ -134,11 +165,78 @@ def detect_entry_type(text: str) -> str:
     return "nota"
 
 
+# Variantes sin ":" o en plural de cada prefijo conocido. Se usan solo para
+# avisar de un probable error de tipeo, nunca para decidir el tipo real:
+# "gasto:" sigue siendo el único formato válido.
+_PROBABLE_PREFIX = {
+    "gasto": "gasto:",
+    "gastos": "gasto:",
+    "ingreso": "ingreso:",
+    "ingresos": "ingreso:",
+    "tarea": "tarea:",
+    "tareas": "tarea:",
+    "idea": "idea:",
+    "ideas": "idea:",
+}
+
+# Palabra base de cada prefijo, para buscar errores de tipeo más sueltos
+# (ej. "gsato", "trea") con similitud de texto.
+_KNOWN_KEYWORDS = {
+    "gasto": "gasto:",
+    "ingreso": "ingreso:",
+    "tarea": "tarea:",
+    "idea": "idea:",
+}
+
+# Por debajo de esto empiezan a aparecer falsos positivos con palabras
+# reales cortas ("área" se parece a "tarea", "vida" a "idea"). El costo de
+# un falso positivo es bajo: Atlas pregunta antes de guardar, así que un
+# "no" lo resuelve sin perder nada.
+_TYPO_SIMILARITY_CUTOFF = 0.8
+
+
+def detect_probable_typo(text: str) -> str | None:
+    """Si el texto parece un intento fallido de usar un prefijo conocido
+    (sin ":", en plural, con algún error de tipeo), devuelve el formato
+    correcto sugerido.
+
+    Devuelve None si no hay ningún prefijo conocido parecido.
+    """
+
+    first_word = text.strip().split(maxsplit=1)[0].lower().rstrip(":")
+
+    exact_match = _PROBABLE_PREFIX.get(first_word)
+
+    if exact_match is not None:
+        return exact_match
+
+    close_matches = difflib.get_close_matches(
+        first_word, _KNOWN_KEYWORDS.keys(), n=1, cutoff=_TYPO_SIMILARITY_CUTOFF
+    )
+
+    if close_matches:
+        return _KNOWN_KEYWORDS[close_matches[0]]
+
+    return None
+
+
+def build_corrected_text(text: str, correct_prefix: str) -> str:
+    """Reconstruye el texto reemplazando la primera palabra por el prefijo
+    correcto (ej. "gasto 15000 nafta" + "gasto:" -> "gasto: 15000 nafta").
+    """
+
+    parts = text.strip().split(maxsplit=1)
+    rest = parts[1] if len(parts) > 1 else ""
+
+    return f"{correct_prefix} {rest}".strip()
+
+
 def normalize_list_type(command: str) -> str | None:
     """Convierte el comando escrito al tipo de registro interno."""
 
     filters = {
         "listar gastos": "gasto",
+        "listar ingresos": "ingreso",
         "listar tareas": "tarea",
         "listar ideas": "idea",
         "listar notas": "nota",
@@ -150,7 +248,9 @@ def normalize_list_type(command: str) -> str | None:
 def format_money(amount: int) -> str:
     """Formatea un número como monto en pesos argentinos."""
 
-    return f"${amount:,.0f}".replace(",", ".")
+    sign = "-" if amount < 0 else ""
+
+    return f"{sign}${abs(amount):,.0f}".replace(",", ".")
 
 
 def show_entries(entry_type: str | None = None) -> None:
@@ -176,10 +276,10 @@ def show_entries(entry_type: str | None = None) -> None:
         category = entry.get("type", "nota")
         text = entry.get("text", "")
 
-        if category == "gasto" and "amount" in entry:
+        if category in {"gasto", "ingreso"} and "amount" in entry:
             amount = format_money(entry["amount"])
             description = entry.get("description", "Sin descripción")
-            print(f"{index}. [gasto] {amount} - {description}")
+            print(f"{index}. [{category}] {amount} - {description}")
         else:
             print(f"{index}. [{category}] {text}")
 
@@ -206,6 +306,50 @@ def show_total_expenses() -> None:
     print(f"Atlas: Gastaste {format_money(total)} en total.")
 
 
+def calculate_balance(entries: list[dict], day: date) -> dict:
+    """Suma ingresos y gastos de un día y calcula el balance.
+
+    Es una función pura (no lee archivos ni imprime) para poder probarla.
+    Los registros sin "amount" numérico se ignoran, igual que en "total gastos".
+    """
+
+    prefix = day.isoformat()
+    income = 0
+    expenses = 0
+
+    for entry in entries:
+        if not str(entry.get("created_at", "")).startswith(prefix):
+            continue
+
+        amount = entry.get("amount")
+
+        if not isinstance(amount, int | float):
+            continue
+
+        if entry.get("type") == "ingreso":
+            income += amount
+        elif entry.get("type") == "gasto":
+            expenses += amount
+
+    return {
+        "income": income,
+        "expenses": expenses,
+        "balance": income - expenses,
+    }
+
+
+def show_daily_balance() -> None:
+    """Muestra ingresos, gastos y balance de hoy."""
+
+    result = calculate_balance(load_entries(), date.today())
+
+    print("\nAtlas: Balance de hoy\n")
+    print(f"  Ingresos: {format_money(result['income'])}")
+    print(f"  Gastos:   {format_money(result['expenses'])}")
+    print(f"  Balance:  {format_money(result['balance'])}")
+    print()
+
+
 def show_help() -> None:
     """Muestra los comandos disponibles."""
 
@@ -213,34 +357,64 @@ def show_help() -> None:
 Comandos disponibles:
 
   gasto: 15000 nafta
+  ingreso: 100000 uber
   tarea: comprar arroz
   idea: crear módulo de estudio
   cualquier otro texto se guarda como nota
 
   listar
   listar gastos
+  listar ingresos
   listar tareas
   listar ideas
   listar notas
 
   total gastos
+  balance dia
 
   ayuda
   salir
 """)
 
 
+def _save_and_report(entry_type: str, text: str) -> None:
+    """Guarda un registro y muestra el resultado (guardado u error)."""
+
+    try:
+        save_entry(entry_type, text)
+        print(f"Atlas: Guardado como {entry_type}.")
+
+    except ValueError as error:
+        print(f"Atlas: {error}")
+
+
 def main() -> None:
     """Ejecuta la interfaz principal de Atlas."""
 
-    print("Atlas v0.2 - Gastos estructurados")
+    print("Atlas v0.3 - Ingresos y balance diario")
     print("Escribí 'ayuda' para ver los comandos.\n")
+
+    # Cuando Atlas sospecha un error de tipeo (ej. "gasto" sin ":"), guarda
+    # acá el texto original y el corregido, y espera la confirmación del
+    # usuario en la próxima vuelta del loop antes de guardar nada.
+    pending_typo: tuple[str, str] | None = None
 
     while True:
         user_input = input("Vos: ").strip()
         command = user_input.lower()
 
         if not user_input:
+            continue
+
+        if pending_typo is not None:
+            original_text, corrected_text = pending_typo
+            pending_typo = None
+
+            if command in {"si", "sí", "s"}:
+                _save_and_report(detect_entry_type(corrected_text), corrected_text)
+            else:
+                _save_and_report("nota", original_text)
+
             continue
 
         if command in {"salir", "exit", "q"}:
@@ -259,6 +433,10 @@ def main() -> None:
             show_total_expenses()
             continue
 
+        if command == "balance dia":
+            show_daily_balance()
+            continue
+
         entry_type_filter = normalize_list_type(command)
 
         if entry_type_filter:
@@ -267,12 +445,16 @@ def main() -> None:
 
         entry_type = detect_entry_type(user_input)
 
-        try:
-            save_entry(entry_type, user_input)
-            print(f"Atlas: Guardado como {entry_type}.")
+        if entry_type == "nota":
+            formato_sugerido = detect_probable_typo(user_input)
 
-        except ValueError as error:
-            print(f"Atlas: {error}")
+            if formato_sugerido is not None:
+                corrected_text = build_corrected_text(user_input, formato_sugerido)
+                print(f"Atlas: ¿Quisiste escribir '{corrected_text}'? (si/no)")
+                pending_typo = (user_input, corrected_text)
+                continue
+
+        _save_and_report(entry_type, user_input)
 
 
 if __name__ == "__main__":

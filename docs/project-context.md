@@ -83,21 +83,29 @@ el total mediante `total gastos`.
 Se formateó `main.py` con Black, se corrigieron dos bugs del parser de gastos
 (mayúsculas y montos decimales ambiguos), se agregaron 19 pruebas automatizadas,
 se unificó la documentación a `docs/` en UTF-8, y se limpió el historial de Git
-para quitar `data/entries.jsonl`. El próximo paso es definir el alcance del
-Sprint 3.
+para quitar `data/entries.jsonl`.
+
+### Sprint 3: ingresos y balance diario — implementado, pendiente de prueba real
+
+Atlas registra ingresos (`ingreso: 100000 uber`), los lista y calcula el balance de
+hoy con `balance dia`. Tiene 47 pruebas automatizadas. Falta probarlo en el día a
+día con datos reales.
 
 ## Funciones actuales
 
 ```text
 gasto: 15000 nafta
+ingreso: 100000 uber
 tarea: comprar arroz
 idea: crear módulo de estudio
 listar
 listar gastos
+listar ingresos
 listar tareas
 listar ideas
 listar notas
 total gastos
+balance dia
 ayuda
 salir
 ```
@@ -108,8 +116,8 @@ salir
 
 - Terminar la limpieza de `ROADMAP.md`, `CHANGELOG.md` y demás documentación.
 - Agregar pruebas automatizadas y verificar el comportamiento existente.
-- Definir oficialmente el Sprint 3.
-- Evaluar ingresos, balance diario y mejoras en el registro de gastos.
+- Probar el Sprint 3 con datos reales y ajustar.
+- Corregir y editar registros, y consultas con filtro de tiempo (este mes, esta semana).
 
 ### Futuro medio
 
@@ -128,7 +136,6 @@ salir
 ## Decisiones abiertas
 
 - El nombre operativo sigue siendo Atlas; Uma permanece como alternativa futura.
-- No se ha elegido el alcance del Sprint 3.
 - No se ha definido cuándo ni con qué proveedor integrar IA.
 - La evolución de la memoria puede usar SQLite, Markdown, Obsidian u otra solución.
 - Falta diseñar formalmente el sistema de permisos y confirmaciones.

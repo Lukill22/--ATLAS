@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- Se agregaron ingresos: `ingreso: 100000 uber` (mismo parser seguro que los gastos).
+- Se agregó el comando `listar ingresos`.
+- Se agregó el comando `balance dia` (ingresos, gastos y balance de hoy).
+- `format_money` ahora muestra bien los montos negativos (`-$5.000`).
+- Si escribís un comando casi bien (`gasto 15000 nafta` sin los dos puntos, `gastos:` en plural, o incluso con un error de tipeo como `gsato`), Atlas pregunta a qué te referías antes de guardar nada; si confirmás, lo guarda bien tipado (con monto y descripción), y si no, lo guarda tal cual como nota.
+- Se agregaron 62 pruebas: ingresos, balance, guardado/lectura (con archivo temporal) y la detección/corrección de formato (incluye un caso documentado de falso positivo: "área" se confunde con "tarea:", y el costo es solo una pregunta de más).
+
 ## 0.2.1
 
 - Se corrigieron dos bugs del parser de gastos: no reconocía "Gasto:" en mayúscula y "15.5" se guardaba en silencio como $15.500.

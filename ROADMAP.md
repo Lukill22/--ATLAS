@@ -44,6 +44,22 @@ Criterio de terminado:
 - Atlas sigue funcionando con gastos estructurados.
 - GitHub refleja los cambios del sprint.
 
+## Sprint 3 — Ingresos y balance diario (implementado, pendiente de prueba real)
+
+Problema que resuelve: Atlas registra gastos, pero no permite saber cuánto se ganó
+(Uber y trabajos extra) ni cuánto quedó en el día.
+
+Versión mínima:
+
+- [x] Registrar ingresos: `ingreso: 100000 uber`.
+- [x] Listar ingresos: `listar ingresos`.
+- [x] Balance de hoy: `balance dia`.
+- [x] Pruebas automatizadas para lo nuevo (incluye guardado y lectura con archivo temporal).
+- [ ] Probarlo en el día a día con datos reales y ajustar.
+
+Fuera de alcance (a propósito): balance semanal o mensual, editar o borrar registros,
+decimales y categorías.
+
 ---
 
 ## Futuro de Atlas
