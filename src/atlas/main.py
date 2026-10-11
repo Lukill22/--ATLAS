@@ -149,6 +149,27 @@ def _write_lines(lines: list[str]) -> None:
         raise
 
 
+def create_backup() -> Path | None:
+    """Copia el archivo de datos actual a uno con fecha y hora en el nombre.
+
+    None si todavía no hay nada guardado. Cada backup tiene su propio
+    timestamp y nunca sobrescribe uno anterior: si se borrara algo por
+    error entre dos backups, el más viejo todavía lo conserva.
+    """
+
+    if not DATA_FILE.exists():
+        return None
+
+    marca = datetime.now().strftime("%Y-%m-%dT%H%M%S")
+    backup_path = DATA_FILE.with_name(f"{DATA_FILE.stem}.{marca}.bak{DATA_FILE.suffix}")
+
+    with backup_path.open("w", encoding="utf-8") as file:
+        for line in _read_lines():
+            file.write(line + "\n")
+
+    return backup_path
+
+
 def save_entry(entry_type: str, text: str) -> dict:
     """Crea y guarda un registro nuevo."""
 
@@ -562,9 +583,22 @@ Comandos disponibles:
   borrar <id>
   hecha <id>
 
+  backup
+
   ayuda
   salir
 """)
+
+
+def show_backup() -> None:
+    """Crea una copia de seguridad del archivo de datos y avisa dónde quedó."""
+
+    backup_path = create_backup()
+
+    if backup_path is None:
+        print("Atlas: Todavía no hay nada guardado para respaldar.")
+    else:
+        print(f"Atlas: Copia de seguridad guardada en {backup_path.name}.")
 
 
 def _save_and_report(entry_type: str, text: str) -> None:
@@ -648,6 +682,10 @@ def main() -> None:
 
         if command == "balance mes":
             show_monthly_balance()
+            continue
+
+        if command == "backup":
+            show_backup()
             continue
 
         entry_type_filter = normalize_list_type(command)

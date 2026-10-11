@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.3
+
+- Nuevo comando `backup`: copia `data/entries.jsonl` a un archivo con fecha y hora (`entries.<timestamp>.bak.jsonl`), sin tocar el original. Nunca sobrescribe un backup anterior.
+- Los backups quedan afuera de Git (`.gitignore`), igual que el archivo de datos real.
+- Se agregaron 5 pruebas.
+
 ## 0.4.2
 
 - Nuevo comando `balance mes`: igual que `balance dia`, pero agrupa ingresos y gastos de todo el mes actual en vez de solo el día de hoy.

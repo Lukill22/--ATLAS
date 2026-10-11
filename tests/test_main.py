@@ -18,6 +18,7 @@ from atlas.main import (
     build_corrected_text,
     calculate_balance,
     calculate_monthly_balance,
+    create_backup,
     delete_entry,
     detect_entry_type,
     detect_probable_typo,
@@ -571,3 +572,50 @@ class TestReescrituraSegura:
             delete_entry(1)
 
             assert [p.name for p in ruta.parent.iterdir()] == ["entries.jsonl"]
+
+
+class TestCreateBackup:
+    def test_sin_datos_devuelve_none(self):
+        with archivo_temporal():
+            assert create_backup() is None
+
+    def test_copia_el_contenido_actual(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 pan")
+
+            backup_path = create_backup()
+
+            assert backup_path is not None
+            assert backup_path.read_text(encoding="utf-8") == backup_path.with_name(
+                "entries.jsonl"
+            ).read_text(encoding="utf-8")
+
+    def test_no_modifica_el_archivo_original(self):
+        with archivo_temporal() as ruta:
+            save_entry("gasto", "gasto: 5000 pan")
+            original_antes = ruta.read_bytes()
+
+            create_backup()
+
+            assert ruta.read_bytes() == original_antes
+
+    def test_el_nombre_del_backup_incluye_bak_y_la_extension_original(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 pan")
+
+            backup_path = create_backup()
+
+            assert backup_path.name.startswith("entries.")
+            assert backup_path.name.endswith(".bak.jsonl")
+
+    def test_conserva_lineas_ilegibles_igual_que_el_original(self):
+        with archivo_temporal() as ruta:
+            ilegible = '{"created_at": "2026-09-02T10:00:00", "cortada'
+            save_entry("gasto", "gasto: 5000 pan")
+            ruta.write_text(
+                ruta.read_text(encoding="utf-8") + ilegible + "\n", encoding="utf-8"
+            )
+
+            backup_path = create_backup()
+
+            assert ilegible in backup_path.read_text(encoding="utf-8")

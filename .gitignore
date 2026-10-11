@@ -29,3 +29,4 @@ Thumbs.db
 /data/*.sqlite
 /data/*.db
 /data/entries.jsonl
+/data/*.bak.jsonl

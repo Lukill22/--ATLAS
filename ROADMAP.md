@@ -91,6 +91,24 @@ Versión mínima:
 - [x] `balance mes`: igual que `balance dia`, pero agrupa todo el mes actual.
 - [x] Pruebas automatizadas para ambas cosas.
 
+## Sprint 3.3 — Backup (terminado)
+
+Problema que resuelve: no había ninguna forma de recuperar un dato borrado por
+error (ni un comando del usuario, ni un accidente externo). Esto no es
+hipotético: durante el desarrollo se perdieron registros reales por un `rm`
+mal pensado, sin ningún backup para recuperarlos.
+
+Versión mínima:
+
+- [x] Comando `backup`: copia `data/entries.jsonl` a un archivo con fecha y hora, sin tocar el original.
+- [x] Nunca sobrescribe un backup anterior (cada uno con su propio timestamp).
+- [x] Los backups quedan afuera de Git, igual que el archivo de datos real.
+- [x] Pruebas automatizadas.
+
+Fuera de alcance (a propósito): backups automáticos/periódicos, límite de
+cantidad de backups viejos, restaurar desde un backup (hoy se restaura a mano
+copiando el archivo).
+
 ---
 
 ## Futuro de Atlas

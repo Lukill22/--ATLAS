@@ -102,7 +102,14 @@ plural, o con typos como "gsato") y pregunta antes de guardar nada.
 `borrar`/`hecha` ya no pueden perder una línea dañada del archivo al reescribirlo
 (antes se iba en silencio), y la escritura es atómica (archivo temporal +
 reemplazo). Nuevo comando `balance mes`, con la misma lógica que `balance dia`
-pero agrupando todo el mes. 85 pruebas automatizadas en total.
+pero agrupando todo el mes.
+
+### Sprint 3.3: backup — terminado
+
+Comando `backup`: copia el archivo de datos a uno con fecha y hora, sin
+sobrescribir backups anteriores. Resuelve un riesgo que ya se concretó una vez
+durante el desarrollo (datos reales perdidos sin ninguna copia). 90 pruebas
+automatizadas en total.
 
 ## Funciones actuales
 
@@ -122,6 +129,7 @@ balance dia
 balance mes
 borrar <id>
 hecha <id>
+backup
 ayuda
 salir
 ```
