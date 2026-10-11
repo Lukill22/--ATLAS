@@ -149,6 +149,28 @@ Fuera de alcance (a propósito): que Atlas use estos hechos automáticamente
 (por ejemplo, avisar si un gasto supera el presupuesto recordado) — eso ya
 empieza a ser lógica de asistente, no solo de almacenamiento.
 
+## Sprint 5 — Interfaz web local (terminado)
+
+Problema que resuelve: usar Atlas por comandos de texto exactos es poco
+visual. Esto no venía de un problema de uso real todavía (como el Sprint 4) —
+fue una decisión consciente de adelantar algo que estaba anotado como "Futuro
+lejano", a pedido explícito y sabiendo que se pausaban funciones nuevas para
+probar Atlas en uso real.
+
+Versión mínima:
+
+- [x] Página local (`src/atlas/web.py`, Flask) que reutiliza las mismas funciones que la terminal (`save_entry`, `load_entries`, `calculate_balance`, etc.) — no duplica lógica.
+- [x] Capturar, listar con filtro de tipo/período, balance de hoy y del mes.
+- [x] Borrar con página de confirmación intermedia (un GET nunca borra; hace falta el POST de esa página).
+- [x] Marcar tareas como hechas.
+- [x] Corre solo en `127.0.0.1`, nunca expuesta a la red.
+- [x] `format_entry_summary()` extraída de `show_entries()` para que la terminal y la web no se desincronicen.
+- [x] Pruebas automatizadas (rutas Flask con el test client).
+
+Fuera de alcance (a propósito): la detección de errores de tipeo con
+confirmación, `recordar`/`que recordás`/`olvidar`, `backup`, acceso desde el
+celular en la misma red (necesitaría pensar autenticación primero).
+
 ---
 
 ## Futuro de Atlas
@@ -275,17 +297,7 @@ La voz puede ser muy valiosa para capturar ideas rápidamente. Pero primero Atla
 
 ---
 
-### 10. Interfaz gráfica o aplicación propia
-
-**Qué cumpliría:**
-Permitirá usar Atlas de forma más cómoda que desde la terminal.
-
-**Por qué es importante:**
-Una interfaz visual puede mejorar mucho la experiencia, pero no debería ser prioridad hasta que las funciones principales estén claras y funcionando.
-
----
-
-### 11. Sistema de agentes especializados
+### 10. Sistema de agentes especializados
 
 **Qué cumpliría:**
 Permitirá dividir Atlas en agentes o módulos con responsabilidades específicas, por ejemplo:

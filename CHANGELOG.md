@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+- Nueva interfaz web local opcional (`src/atlas/web.py`), con Flask. Usa las mismas funciones que la terminal (`save_entry`, `load_entries`, `calculate_balance`, etc.); no duplica lógica, solo cambia cómo se muestra.
+- Cubre: capturar, listar con filtro de tipo/período, balance de hoy y del mes, borrar (con página de confirmación antes de borrar de verdad) y marcar tareas como hechas.
+- Corre solo en `127.0.0.1`, nunca expuesta a la red.
+- Quedan afuera de esta versión (se siguen usando por terminal): la detección de errores de tipeo, `recordar`/`que recordás`/`olvidar` y `backup`.
+- Se extrajo `format_entry_summary()` de `show_entries()` para que la terminal y la web compartan la misma lógica de formato.
+- Flask se agrega como dependencia de runtime (antes Atlas no tenía ninguna); la terminal sigue sin necesitar nada.
+- Se agregaron 11 pruebas de las rutas web (123 en total).
+
 ## 0.5.0
 
 - Memoria local simple: `recordar <algo>: <valor>` guarda un hecho (clave -> valor) en `data/memory.json`, separado de `entries.jsonl` porque no es un registro cronológico, es información que se actualiza (recordar de nuevo pisa el valor anterior, no lo duplica).

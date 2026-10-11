@@ -5,13 +5,26 @@ No se busca crear solo un chatbot, sino una base gradual y mantenible para evolu
 
 ## Cómo ejecutar
 
-Atlas no tiene dependencias de runtime; solo necesita Python 3.10 o superior.
+### Terminal (sin dependencias)
 
 ```bash
 python src/atlas/main.py
 ```
 
 Escribí `ayuda` dentro de Atlas para ver los comandos disponibles.
+
+### Interfaz web local (opcional)
+
+Usa la misma lógica que la terminal, solo cambia cómo se muestra. Necesita
+Flask (`pip install -r requirements.txt`) y corre solo en tu propia
+computadora (`127.0.0.1`), nunca expuesta a la red.
+
+```bash
+pip install -r requirements.txt
+python src/atlas/web.py
+```
+
+Después abrí `http://127.0.0.1:5000/` en el navegador.
 
 ## Cómo correr las pruebas
 
@@ -42,10 +55,15 @@ Atlas/
 ├── src/
 │   └── atlas/
 │       ├── __init__.py
-│       └── main.py
+│       ├── main.py
+│       ├── web.py
+│       └── templates/
+│           ├── index.html
+│           └── confirmar_borrado.html
 ├── tests/
 │   ├── conftest.py
-│   └── test_main.py
+│   ├── test_main.py
+│   └── test_web.py
 ├── data/
 │   └── .gitkeep
 ├── AGENTS.md

@@ -50,7 +50,9 @@ entienda.
 ## Arquitectura y decisiones vigentes
 
 - Python es el lenguaje inicial.
-- La interfaz actual funciona en la terminal.
+- La interfaz principal es la terminal; existe además una interfaz web local
+  opcional (Flask, `src/atlas/web.py`), que reutiliza la misma lógica y corre
+  solo en `127.0.0.1`.
 - Los registros se almacenan inicialmente en `data/entries.jsonl`.
 - `data/entries.jsonl` contiene información personal y no debe versionarse.
 - SQLite puede reemplazar JSONL cuando las consultas lo justifiquen.
@@ -121,7 +123,16 @@ sacó `normalize_list_type` (quedó redundante con `parse_list_command`).
 valor, se actualiza en vez de acumularse); `que recordas` lista todo; `olvidar
 <algo>` borra uno. Construido sin un problema validado por uso real todavía —
 revisar si la forma elegida sigue teniendo sentido después de usar Atlas un
-tiempo. 112 pruebas automatizadas en total.
+tiempo.
+
+### Sprint 5: interfaz web local — terminado
+
+`src/atlas/web.py` (Flask) reutiliza las mismas funciones que la terminal;
+cubre capturar, listar con filtros, balance y borrar/marcar tareas (con
+confirmación antes de borrar). Corre solo en `127.0.0.1`. A diferencia del
+Sprint 4, esto no vino de un problema de uso real sino de una decisión
+explícita de adelantar algo que estaba en "Futuro lejano". 123 pruebas
+automatizadas en total.
 
 ## Funciones actuales
 
@@ -157,7 +168,7 @@ salir
 
 ### Futuro cercano
 
-- Probar Atlas con uso real, varios días (todo lo construido hasta ahora, incluida la memoria). No hay ninguna función nueva anotada: el próximo problema real todavía no apareció.
+- Probar Atlas con uso real, varios días (todo lo construido hasta ahora: terminal, web, memoria). No hay ninguna función nueva anotada: el próximo problema real todavía no apareció.
 
 ### Futuro medio
 
@@ -169,7 +180,7 @@ salir
 
 - Integración con modelos de IA.
 - Automatizaciones con permisos explícitos.
-- Voz e interfaz gráfica o móvil.
+- Voz y acceso móvil (ya existe la interfaz web; falta decidir si se expone a la red local y cómo).
 - Agentes especializados e integraciones externas.
 
 ## Decisiones abiertas

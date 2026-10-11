@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Atlas</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+    h1 { margin-bottom: 0.1rem; }
+    .subtitulo { color: #666; margin-top: 0; }
+    .flash { padding: 0.6rem 0.8rem; border-radius: 6px; margin: 1rem 0; }
+    .flash.ok { background: #e6f4ea; color: #1e4620; }
+    .flash.error { background: #fce8e6; color: #7a1a1a; }
+    form.capturar { display: flex; gap: 0.5rem; margin: 1.2rem 0; }
+    form.capturar input[type=text] { flex: 1; padding: 0.5rem; font-size: 1rem; }
+    form.capturar button { padding: 0.5rem 1rem; }
+    .balance { display: flex; gap: 1rem; margin: 1rem 0 1.5rem; }
+    .balance > div { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; }
+    .balance .negativo { color: #b00020; font-weight: bold; }
+    .filtros { margin-bottom: 1rem; }
+    .filtros select { margin-right: 0.5rem; padding: 0.3rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; vertical-align: top; }
+    th { color: #666; font-weight: normal; font-size: 0.85rem; }
+    .acciones { white-space: nowrap; }
+    .acciones form { display: inline; margin-right: 0.4rem; }
+    .acciones button { padding: 0.2rem 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Atlas</h1>
+  <p class="subtitulo">Interfaz web local — usa la misma lógica que la terminal.</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for categoria, mensaje in messages %}
+      <div class="flash {{ categoria }}">{{ mensaje }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form class="capturar" method="post" action="{{ url_for('agregar') }}">
+    <input type="text" name="texto" placeholder="gasto: 15000 nafta / tarea: ... / lo que sea" autofocus>
+    <button type="submit">Guardar</button>
+  </form>
+
+  <div class="balance">
+    <div>
+      <strong>Hoy</strong><br>
+      Ingresos: {{ format_money(balance_hoy.income) }}<br>
+      Gastos: {{ format_money(balance_hoy.expenses) }}<br>
+      Balance: <span class="{{ 'negativo' if balance_hoy.balance < 0 else '' }}">{{ format_money(balance_hoy.balance) }}</span>
+    </div>
+    <div>
+      <strong>Este mes</strong><br>
+      Ingresos: {{ format_money(balance_mes.income) }}<br>
+      Gastos: {{ format_money(balance_mes.expenses) }}<br>
+      Balance: <span class="{{ 'negativo' if balance_mes.balance < 0 else '' }}">{{ format_money(balance_mes.balance) }}</span>
+    </div>
+  </div>
+
+  <form class="filtros" method="get" action="{{ url_for('index') }}">
+    <select name="tipo">
+      <option value="" {{ "selected" if not tipo else "" }}>Todos los tipos</option>
+      <option value="gasto" {{ "selected" if tipo == "gasto" else "" }}>Gastos</option>
+      <option value="ingreso" {{ "selected" if tipo == "ingreso" else "" }}>Ingresos</option>
+      <option value="tarea" {{ "selected" if tipo == "tarea" else "" }}>Tareas</option>
+      <option value="idea" {{ "selected" if tipo == "idea" else "" }}>Ideas</option>
+      <option value="nota" {{ "selected" if tipo == "nota" else "" }}>Notas</option>
+    </select>
+    <select name="periodo">
+      <option value="" {{ "selected" if not periodo else "" }}>Todo el tiempo</option>
+      <option value="hoy" {{ "selected" if periodo == "hoy" else "" }}>Hoy</option>
+      <option value="mes" {{ "selected" if periodo == "mes" else "" }}>Este mes</option>
+    </select>
+    <button type="submit">Filtrar</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Registro</th><th>Fecha</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr>
+        <td>{{ entry.id if entry.id is not none else "?" }}</td>
+        <td>{{ format_entry_summary(entry) }}</td>
+        <td>{{ entry.created_at or "Fecha desconocida" }}</td>
+        <td class="acciones">
+          {% if entry.type == "tarea" and not entry.done %}
+          <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
+            <button type="submit">Hecha</button>
+          </form>
+          {% endif %}
+          <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No hay registros para este filtro.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

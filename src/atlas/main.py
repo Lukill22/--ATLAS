@@ -585,6 +585,28 @@ def format_money(amount: int) -> str:
     return f"{sign}${abs(amount):,.0f}".replace(",", ".")
 
 
+def format_entry_summary(entry: dict) -> str:
+    """Describe un registro en una línea legible (sin id ni fecha).
+
+    Lo usan tanto show_entries() (terminal) como la interfaz web, para que
+    las dos muestren exactamente lo mismo sin duplicar esta lógica.
+    """
+
+    category = entry.get("type", "nota")
+    text = entry.get("text", "")
+
+    if category in {"gasto", "ingreso"} and "amount" in entry:
+        amount = format_money(entry["amount"])
+        description = entry.get("description", "Sin descripción")
+        return f"[{category}] {amount} - {description}"
+
+    if category == "tarea":
+        estado = "[x]" if entry.get("done") else "[ ]"
+        return f"{estado} [tarea] {text}"
+
+    return f"[{category}] {text}"
+
+
 def show_entries(entry_type: str | None = None, period: str | None = None) -> None:
     """Muestra los últimos registros, con filtro opcional de tipo y/o período."""
 
@@ -609,19 +631,7 @@ def show_entries(entry_type: str | None = None, period: str | None = None) -> No
     for entry in entries[-10:]:
         entry_id = entry.get("id", "?")
         created_at = entry.get("created_at", "Fecha desconocida")
-        category = entry.get("type", "nota")
-        text = entry.get("text", "")
-
-        if category in {"gasto", "ingreso"} and "amount" in entry:
-            amount = format_money(entry["amount"])
-            description = entry.get("description", "Sin descripción")
-            print(f"#{entry_id} [{category}] {amount} - {description}")
-        elif category == "tarea":
-            estado = "[x]" if entry.get("done") else "[ ]"
-            print(f"#{entry_id} {estado} [tarea] {text}")
-        else:
-            print(f"#{entry_id} [{category}] {text}")
-
+        print(f"#{entry_id} {format_entry_summary(entry)}")
         print(f"   Fecha: {created_at}")
 
     print()

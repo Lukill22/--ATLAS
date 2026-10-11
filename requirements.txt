@@ -1,2 +1,6 @@
-# Atlas no tiene dependencias de runtime: usa solo la librería estándar de Python.
+# Atlas (terminal, src/atlas/main.py) no tiene dependencias de runtime: usa
+# solo la librería estándar de Python.
+#
+# La interfaz web local (src/atlas/web.py) sí necesita Flask.
 # Para desarrollo (formateo, pruebas), ver requirements-dev.txt.
+Flask==3.1.3

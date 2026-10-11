@@ -5,15 +5,13 @@ E/S con lógica; eso queda para cuando valga la pena separarlo.
 """
 
 import json
-import tempfile
-from contextlib import contextmanager
 from datetime import date
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 import atlas.main as atlas_main
+from conftest import archivo_temporal
 from atlas.main import (
     build_corrected_text,
     calculate_balance,
@@ -37,23 +35,6 @@ from atlas.main import (
     remember_fact,
     save_entry,
 )
-
-
-@contextmanager
-def archivo_temporal():
-    """Redirige DATA_FILE y MEMORY_FILE a un directorio temporal durante la
-    prueba. Así las pruebas de guardado y lectura nunca tocan los archivos
-    reales de `data/`.
-    """
-
-    with tempfile.TemporaryDirectory() as carpeta:
-        ruta = Path(carpeta) / "entries.jsonl"
-        ruta_memoria = Path(carpeta) / "memory.json"
-
-        with patch.object(atlas_main, "DATA_FILE", ruta), patch.object(
-            atlas_main, "MEMORY_FILE", ruta_memoria
-        ):
-            yield ruta
 
 
 class TestParseExpense:
