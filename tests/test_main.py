@@ -22,14 +22,15 @@ from atlas.main import (
     delete_entry,
     detect_entry_type,
     detect_probable_typo,
+    filter_by_period,
     find_entry,
     format_money,
     load_entries,
     mark_task_done,
-    normalize_list_type,
     parse_expense,
     parse_id_command,
     parse_income,
+    parse_list_command,
     save_entry,
 )
 
@@ -176,12 +177,66 @@ class TestBuildCorrectedText:
         assert build_corrected_text("gasto", "gasto:") == "gasto:"
 
 
-class TestNormalizeListType:
-    def test_comando_valido(self):
-        assert normalize_list_type("listar gastos") == "gasto"
+class TestParseListCommand:
+    def test_listar_solo(self):
+        assert parse_list_command("listar") == {"entry_type": None, "period": None}
 
-    def test_comando_invalido(self):
-        assert normalize_list_type("listar autos") is None
+    def test_listar_con_tipo(self):
+        assert parse_list_command("listar gastos") == {
+            "entry_type": "gasto",
+            "period": None,
+        }
+
+    def test_listar_con_periodo_sin_tipo(self):
+        assert parse_list_command("listar hoy") == {"entry_type": None, "period": "hoy"}
+
+    def test_listar_con_tipo_y_periodo(self):
+        assert parse_list_command("listar tareas mes") == {
+            "entry_type": "tarea",
+            "period": "mes",
+        }
+
+    def test_palabra_no_reconocida_devuelve_none(self):
+        assert parse_list_command("listar autos") is None
+
+    def test_tipo_repetido_devuelve_none(self):
+        assert parse_list_command("listar gastos ingresos") is None
+
+    def test_demasiadas_palabras_devuelve_none(self):
+        assert parse_list_command("listar gastos hoy ahora") is None
+
+    def test_texto_sin_relacion_devuelve_none(self):
+        assert parse_list_command("total gastos") is None
+
+
+class TestFilterByPeriod:
+    HOY = "2026-10-11T10:00:00"
+    AYER = "2026-10-10T23:59:00"
+    OTRO_MES = "2026-09-30T10:00:00"
+
+    def _entries(self):
+        return [
+            {"created_at": self.HOY, "text": "de hoy"},
+            {"created_at": self.AYER, "text": "de ayer"},
+            {"created_at": self.OTRO_MES, "text": "de otro mes"},
+        ]
+
+    def test_sin_periodo_no_filtra(self):
+        assert filter_by_period(self._entries(), None) == self._entries()
+
+    def test_hoy_solo_deja_las_de_hoy(self):
+        with patch.object(atlas_main, "date") as fecha_falsa:
+            fecha_falsa.today.return_value = date(2026, 10, 11)
+            resultado = filter_by_period(self._entries(), "hoy")
+
+        assert [entry["text"] for entry in resultado] == ["de hoy"]
+
+    def test_mes_deja_todo_el_mes(self):
+        with patch.object(atlas_main, "date") as fecha_falsa:
+            fecha_falsa.today.return_value = date(2026, 10, 11)
+            resultado = filter_by_period(self._entries(), "mes")
+
+        assert [entry["text"] for entry in resultado] == ["de hoy", "de ayer"]
 
 
 class TestFormatMoney:
@@ -241,7 +296,10 @@ class TestIngresosEnComandos:
         assert detect_entry_type("Ingreso: 100000 uber") == "ingreso"
 
     def test_listar_ingresos(self):
-        assert normalize_list_type("listar ingresos") == "ingreso"
+        assert parse_list_command("listar ingresos") == {
+            "entry_type": "ingreso",
+            "period": None,
+        }
 
 
 class TestFormatMoneyNegativo:

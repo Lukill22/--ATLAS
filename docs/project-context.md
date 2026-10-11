@@ -108,8 +108,13 @@ pero agrupando todo el mes.
 
 Comando `backup`: copia el archivo de datos a uno con fecha y hora, sin
 sobrescribir backups anteriores. Resuelve un riesgo que ya se concretó una vez
-durante el desarrollo (datos reales perdidos sin ninguna copia). 90 pruebas
-automatizadas en total.
+durante el desarrollo (datos reales perdidos sin ninguna copia).
+
+### Sprint 3.4: filtro de tiempo para `listar` — terminado
+
+`listar hoy`, `listar mes`, `listar tareas hoy`, `listar gastos mes`, etc. Se
+sacó `normalize_list_type` (quedó redundante con `parse_list_command`). 99
+pruebas automatizadas en total.
 
 ## Funciones actuales
 
@@ -124,6 +129,10 @@ listar ingresos
 listar tareas
 listar ideas
 listar notas
+listar hoy
+listar mes
+listar <tipo> hoy
+listar <tipo> mes
 total gastos
 balance dia
 balance mes
@@ -138,8 +147,7 @@ salir
 
 ### Futuro cercano
 
-- Probar el Sprint 3 (ingresos y balance) con uso real, varios días.
-- Filtro de tiempo para `listar` (tareas/notas de hoy, de esta semana).
+- Probar Atlas con uso real, varios días (ingresos, balance, borrar/hecha, filtros de tiempo).
 - Memoria local simple.
 
 ### Futuro medio

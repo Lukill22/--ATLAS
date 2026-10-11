@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.4
+
+- `listar` ahora acepta un filtro de período: `listar hoy`, `listar mes`, `listar tareas hoy`, `listar gastos mes`, etc.
+- Se quitó `normalize_list_type` (quedó redundante): `parse_list_command` ya cubre lo mismo y además el período.
+- Se agregaron 11 pruebas (parseo del comando y filtro por período).
+
 ## 0.4.3
 
 - Nuevo comando `backup`: copia `data/entries.jsonl` a un archivo con fecha y hora (`entries.<timestamp>.bak.jsonl`), sin tocar el original. Nunca sobrescribe un backup anterior.

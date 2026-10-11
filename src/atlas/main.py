@@ -405,18 +405,67 @@ def build_corrected_text(text: str, correct_prefix: str) -> str:
     return f"{correct_prefix} {rest}".strip()
 
 
-def normalize_list_type(command: str) -> str | None:
-    """Convierte el comando escrito al tipo de registro interno."""
+# Palabra tal como se escribe -> tipo interno, para parse_list_command.
+_LIST_TYPE_WORDS = {
+    "gastos": "gasto",
+    "ingresos": "ingreso",
+    "tareas": "tarea",
+    "ideas": "idea",
+    "notas": "nota",
+}
 
-    filters = {
-        "listar gastos": "gasto",
-        "listar ingresos": "ingreso",
-        "listar tareas": "tarea",
-        "listar ideas": "idea",
-        "listar notas": "nota",
-    }
+_PERIOD_WORDS = {"hoy", "mes"}
 
-    return filters.get(command)
+
+def parse_list_command(command: str) -> dict | None:
+    """Interpreta un comando "listar [tipo] [período]".
+
+    Ejemplos válidos: "listar", "listar gastos", "listar hoy",
+    "listar tareas mes" (el orden tipo-período es fijo). Devuelve None si
+    command no empieza con "listar" o tiene alguna palabra que no es ni un
+    tipo ni un período conocido.
+    """
+
+    if command != "listar" and not command.startswith("listar "):
+        return None
+
+    palabras = command[len("listar") :].split()
+
+    if len(palabras) > 2:
+        return None
+
+    entry_type: str | None = None
+    period: str | None = None
+
+    for palabra in palabras:
+        if palabra in _LIST_TYPE_WORDS and entry_type is None:
+            entry_type = _LIST_TYPE_WORDS[palabra]
+        elif palabra in _PERIOD_WORDS and period is None:
+            period = palabra
+        else:
+            return None
+
+    return {"entry_type": entry_type, "period": period}
+
+
+def filter_by_period(entries: list[dict], period: str | None) -> list[dict]:
+    """Filtra registros cuyo "created_at" caiga en el período dado.
+
+    period es "hoy", "mes", o None (no filtra nada). Usa la fecha actual,
+    igual que calculate_balance/calculate_monthly_balance.
+    """
+
+    if period is None:
+        return entries
+
+    today = date.today()
+    prefix = today.isoformat() if period == "hoy" else today.strftime("%Y-%m")
+
+    return [
+        entry
+        for entry in entries
+        if str(entry.get("created_at", "")).startswith(prefix)
+    ]
 
 
 def format_money(amount: int) -> str:
@@ -427,17 +476,20 @@ def format_money(amount: int) -> str:
     return f"{sign}${abs(amount):,.0f}".replace(",", ".")
 
 
-def show_entries(entry_type: str | None = None) -> None:
-    """Muestra los últimos registros, con filtro opcional."""
+def show_entries(entry_type: str | None = None, period: str | None = None) -> None:
+    """Muestra los últimos registros, con filtro opcional de tipo y/o período."""
 
     entries = load_entries()
 
     if entry_type is not None:
         entries = [entry for entry in entries if entry.get("type") == entry_type]
 
+    entries = filter_by_period(entries, period)
+
     if not entries:
-        if entry_type:
-            print(f"Atlas: No encontré registros " f"de tipo '{entry_type}'.")
+        if entry_type or period:
+            descripcion = " ".join(parte for parte in (entry_type, period) if parte)
+            print(f"Atlas: No encontré registros para '{descripcion}'.")
         else:
             print("Atlas: Todavía no hay registros guardados.")
 
@@ -575,6 +627,10 @@ Comandos disponibles:
   listar tareas
   listar ideas
   listar notas
+  listar hoy
+  listar mes
+  listar <tipo> hoy
+  listar <tipo> mes
 
   total gastos
   balance dia
@@ -668,8 +724,10 @@ def main() -> None:
             show_help()
             continue
 
-        if command == "listar":
-            show_entries()
+        list_command = parse_list_command(command)
+
+        if list_command is not None:
+            show_entries(list_command["entry_type"], list_command["period"])
             continue
 
         if command == "total gastos":
@@ -686,12 +744,6 @@ def main() -> None:
 
         if command == "backup":
             show_backup()
-            continue
-
-        entry_type_filter = normalize_list_type(command)
-
-        if entry_type_filter:
-            show_entries(entry_type_filter)
             continue
 
         delete_id = parse_id_command(command, "borrar")
