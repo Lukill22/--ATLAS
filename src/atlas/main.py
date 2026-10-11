@@ -81,10 +81,39 @@ def parse_income(text: str) -> dict | None:
     return _parse_amount_entry(text, "ingreso:")
 
 
+def _next_id(entries: list[dict]) -> int:
+    """Calcula el próximo id disponible a partir de los ids existentes.
+
+    Usa el máximo en vez de "cantidad de registros + 1" para no repetir un
+    id después de borrar un registro.
+    """
+
+    existing_ids = [
+        entry["id"] for entry in entries if isinstance(entry.get("id"), int)
+    ]
+
+    return max(existing_ids, default=0) + 1
+
+
+def _write_entries(entries: list[dict]) -> None:
+    """Reescribe el archivo completo con la lista de registros dada.
+
+    A diferencia de save_entry (que solo agrega una línea), esto se usa
+    para borrar o modificar un registro que ya existía.
+    """
+
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    with DATA_FILE.open("w", encoding="utf-8") as file:
+        for entry in entries:
+            file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
 def save_entry(entry_type: str, text: str) -> dict:
     """Crea y guarda un registro nuevo."""
 
     entry = {
+        "id": _next_id(load_entries()),
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "type": entry_type,
         "text": text,
@@ -143,6 +172,72 @@ def load_entries() -> list[dict]:
                 print(f"Atlas: No pude leer el registro " f"de la línea {line_number}.")
 
     return entries
+
+
+def find_entry(entry_id: int) -> dict | None:
+    """Busca un registro guardado por id. None si no existe."""
+
+    for entry in load_entries():
+        if entry.get("id") == entry_id:
+            return entry
+
+    return None
+
+
+def delete_entry(entry_id: int) -> bool:
+    """Borra el registro con el id dado. Devuelve True si existía."""
+
+    entries = load_entries()
+    remaining = [entry for entry in entries if entry.get("id") != entry_id]
+
+    if len(remaining) == len(entries):
+        return False
+
+    _write_entries(remaining)
+
+    return True
+
+
+def mark_task_done(entry_id: int) -> str:
+    """Marca una tarea como hecha.
+
+    Devuelve "ok", "no_es_tarea" (el id existe pero no es una tarea) o
+    "no_encontrado" (no hay ningún registro con ese id).
+    """
+
+    entries = load_entries()
+
+    for entry in entries:
+        if entry.get("id") == entry_id:
+            if entry.get("type") != "tarea":
+                return "no_es_tarea"
+
+            entry["done"] = True
+            _write_entries(entries)
+
+            return "ok"
+
+    return "no_encontrado"
+
+
+def parse_id_command(command: str, keyword: str) -> int | None:
+    """Extrae un id numérico de un comando tipo "borrar 3".
+
+    None si el comando no empieza con esa palabra o lo que sigue no es un
+    número entero.
+    """
+
+    prefix = f"{keyword} "
+
+    if not command.startswith(prefix):
+        return None
+
+    id_text = command[len(prefix) :].strip()
+
+    if not id_text.isdigit():
+        return None
+
+    return int(id_text)
 
 
 def detect_entry_type(text: str) -> str:
@@ -271,7 +366,8 @@ def show_entries(entry_type: str | None = None) -> None:
 
     print("\nAtlas: Estos son tus últimos registros:\n")
 
-    for index, entry in enumerate(entries[-10:], start=1):
+    for entry in entries[-10:]:
+        entry_id = entry.get("id", "?")
         created_at = entry.get("created_at", "Fecha desconocida")
         category = entry.get("type", "nota")
         text = entry.get("text", "")
@@ -279,9 +375,12 @@ def show_entries(entry_type: str | None = None) -> None:
         if category in {"gasto", "ingreso"} and "amount" in entry:
             amount = format_money(entry["amount"])
             description = entry.get("description", "Sin descripción")
-            print(f"{index}. [{category}] {amount} - {description}")
+            print(f"#{entry_id} [{category}] {amount} - {description}")
+        elif category == "tarea":
+            estado = "[x]" if entry.get("done") else "[ ]"
+            print(f"#{entry_id} {estado} [tarea] {text}")
         else:
-            print(f"{index}. [{category}] {text}")
+            print(f"#{entry_id} [{category}] {text}")
 
         print(f"   Fecha: {created_at}")
 
@@ -372,6 +471,9 @@ Comandos disponibles:
   total gastos
   balance dia
 
+  borrar <id>
+  hecha <id>
+
   ayuda
   salir
 """)
@@ -391,13 +493,18 @@ def _save_and_report(entry_type: str, text: str) -> None:
 def main() -> None:
     """Ejecuta la interfaz principal de Atlas."""
 
-    print("Atlas v0.3 - Ingresos y balance diario")
+    print("Atlas v0.4 - Corregir y borrar registros")
     print("Escribí 'ayuda' para ver los comandos.\n")
 
     # Cuando Atlas sospecha un error de tipeo (ej. "gasto" sin ":"), guarda
     # acá el texto original y el corregido, y espera la confirmación del
     # usuario en la próxima vuelta del loop antes de guardar nada.
     pending_typo: tuple[str, str] | None = None
+
+    # Igual que pending_typo, pero para confirmar un borrado. Son estados
+    # separados porque solo puede haber uno pendiente a la vez: cada uno
+    # se resuelve (o cancela) antes de poder iniciar el otro.
+    pending_delete_id: int | None = None
 
     while True:
         user_input = input("Vos: ").strip()
@@ -414,6 +521,20 @@ def main() -> None:
                 _save_and_report(detect_entry_type(corrected_text), corrected_text)
             else:
                 _save_and_report("nota", original_text)
+
+            continue
+
+        if pending_delete_id is not None:
+            delete_id = pending_delete_id
+            pending_delete_id = None
+
+            if command == "confirmar borrado":
+                if delete_entry(delete_id):
+                    print(f"Atlas: Borré el registro #{delete_id}.")
+                else:
+                    print(f"Atlas: El registro #{delete_id} ya no existía.")
+            else:
+                print("Atlas: Borrado cancelado.")
 
             continue
 
@@ -441,6 +562,37 @@ def main() -> None:
 
         if entry_type_filter:
             show_entries(entry_type_filter)
+            continue
+
+        delete_id = parse_id_command(command, "borrar")
+
+        if delete_id is not None:
+            entry = find_entry(delete_id)
+
+            if entry is None:
+                print(f"Atlas: No encontré ningún registro con id #{delete_id}.")
+            else:
+                print(
+                    f"Atlas: Vas a borrar #{delete_id} [{entry.get('type')}] "
+                    f"{entry.get('text')}"
+                )
+                print("Atlas: Escribí 'confirmar borrado' para confirmar.")
+                pending_delete_id = delete_id
+
+            continue
+
+        done_id = parse_id_command(command, "hecha")
+
+        if done_id is not None:
+            resultado = mark_task_done(done_id)
+
+            if resultado == "ok":
+                print(f"Atlas: Marqué la tarea #{done_id} como hecha.")
+            elif resultado == "no_es_tarea":
+                print(f"Atlas: El registro #{done_id} no es una tarea.")
+            else:
+                print(f"Atlas: No encontré ninguna tarea con id #{done_id}.")
+
             continue
 
         entry_type = detect_entry_type(user_input)

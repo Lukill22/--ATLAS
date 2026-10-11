@@ -88,8 +88,15 @@ para quitar `data/entries.jsonl`.
 ### Sprint 3: ingresos y balance diario — implementado, pendiente de prueba real
 
 Atlas registra ingresos (`ingreso: 100000 uber`), los lista y calcula el balance de
-hoy con `balance dia`. Tiene 47 pruebas automatizadas. Falta probarlo en el día a
-día con datos reales.
+hoy con `balance dia`. Falta probarlo en el día a día con datos reales.
+
+### Sprint 3.1: corregir y borrar registros — terminado
+
+Cada registro tiene un id estable. `borrar <id>` pide confirmación explícita
+(`confirmar borrado`) antes de borrar de verdad; `hecha <id>` marca una tarea como
+completada. Atlas también detecta errores de tipeo en los prefijos (sin ":", en
+plural, o con typos como "gsato") y pregunta antes de guardar nada. 76 pruebas
+automatizadas en total.
 
 ## Funciones actuales
 
@@ -106,6 +113,8 @@ listar ideas
 listar notas
 total gastos
 balance dia
+borrar <id>
+hecha <id>
 ayuda
 salir
 ```
@@ -114,14 +123,12 @@ salir
 
 ### Futuro cercano
 
-- Terminar la limpieza de `ROADMAP.md`, `CHANGELOG.md` y demás documentación.
-- Agregar pruebas automatizadas y verificar el comportamiento existente.
-- Probar el Sprint 3 con datos reales y ajustar.
-- Corregir y editar registros, y consultas con filtro de tiempo (este mes, esta semana).
+- Probar el Sprint 3 (ingresos y balance) y el Sprint 3.1 (borrar/hecha) con uso real, varios días.
+- Consultas con filtro de tiempo (este mes, esta semana).
+- Memoria local simple.
 
 ### Futuro medio
 
-- Memoria local simple y resúmenes diarios.
 - Organización de tareas y módulo de estudio.
 - Reportes básicos y posible integración con Obsidian.
 - Comandos de lenguaje más natural.

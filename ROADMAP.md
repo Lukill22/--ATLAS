@@ -60,6 +60,22 @@ Versión mínima:
 Fuera de alcance (a propósito): balance semanal o mensual, editar o borrar registros,
 decimales y categorías.
 
+## Sprint 3.1 — Corregir y borrar registros (terminado)
+
+Problema que resuelve: un error de tipeo o una tarea ya hecha quedaban para
+siempre, sin forma de sacarlos ni de marcarlos.
+
+Versión mínima:
+
+- [x] Id estable por registro (`listar` ya no numera 1..10 de nuevo cada vez).
+- [x] `borrar <id>`, con confirmación explícita (`confirmar borrado`) antes de borrar de verdad.
+- [x] `hecha <id>` para marcar una tarea como completada.
+- [x] Detección de errores de tipeo en los prefijos (`gasto` sin ":", `gastos:` en plural, e incluso typos como `gsato`), con confirmación antes de guardar.
+- [x] Pruebas automatizadas para todo lo anterior.
+
+Fuera de alcance (a propósito): editar el texto libre de un registro ya guardado
+(hoy la única forma de "corregir" un texto es borrarlo y volver a crearlo).
+
 ---
 
 ## Futuro de Atlas
@@ -76,17 +92,7 @@ La visión de Atlas es crecer de forma gradual, evitando agregar complejidad inn
 
 ## Futuro cercano
 
-### 1. Corregir y editar registros
-
-**Qué cumpliría:**
-Permitiría borrar o corregir una entrada guardada por error, y marcar una tarea como hecha.
-
-**Por qué es importante:**
-Hoy un error de tipeo o una tarea completada quedan para siempre. Sin esto, Atlas acumula ruido en vez de información útil.
-
----
-
-### 2. Comandos de consulta con filtro de tiempo
+### 1. Comandos de consulta con filtro de tiempo
 
 **Qué cumpliría:**
 Permitirá preguntas como `total gastos este mes` o `listar tareas de hoy`, en vez de solo totales acumulados de todo el tiempo.
@@ -96,7 +102,7 @@ Permitirá preguntas como `total gastos este mes` o `listar tareas de hoy`, en v
 
 ---
 
-### 3. Memoria local simple
+### 2. Memoria local simple
 
 **Qué cumpliría:**
 Permitirá que Atlas conserve información importante de manera persistente en la computadora, más allá del registro plano actual.
@@ -108,7 +114,7 @@ La memoria es una de las bases del proyecto. Sin memoria, Atlas sería solo una 
 
 ## Futuro medio
 
-### 4. Asistente conversacional
+### 3. Asistente conversacional
 
 **Qué cumpliría:**
 Permitirá interactuar con Atlas de una manera más natural, no solo mediante comandos rígidos.
@@ -118,7 +124,7 @@ Atlas no busca ser solo un programa de terminal. A largo plazo debe poder conver
 
 ---
 
-### 5. Módulo de estudio
+### 4. Módulo de estudio
 
 **Qué cumpliría:**
 Ayudará a organizar temas de estudio, registrar avances, sugerir repasos y transformar objetivos grandes en tareas pequeñas.
@@ -128,7 +134,7 @@ Uno de los objetivos principales de Atlas es potenciar el aprendizaje. Este mód
 
 ---
 
-### 6. Organización de archivos
+### 5. Organización de archivos
 
 **Qué cumpliría:**
 Permitirá que Atlas ayude a ordenar carpetas, buscar documentos y clasificar archivos locales.
@@ -138,7 +144,7 @@ Es una función alineada con el objetivo de organización. Sin embargo, debe imp
 
 ---
 
-### 7. Integración con modelos de IA
+### 6. Integración con modelos de IA
 
 **Qué cumpliría:**
 Permitirá que Atlas use modelos como ChatGPT, Claude o modelos locales para interpretar texto, resumir información, clasificar notas y asistir en decisiones.
@@ -148,7 +154,7 @@ La IA será una parte fundamental del proyecto, pero no debe ser lo primero. Ant
 
 ---
 
-### 8. Reportes simples
+### 7. Reportes simples
 
 **Qué cumpliría:**
 Permitirá generar resúmenes sobre gastos, tareas, ideas o hábitos registrados.
@@ -170,7 +176,7 @@ Los reportes convierten datos sueltos en información útil. Esta función ayuda
 
 ## Futuro lejano
 
-### 9. Automatizaciones controladas
+### 8. Automatizaciones controladas
 
 **Qué cumpliría:**
 Permitirá que Atlas ejecute acciones en la computadora, como crear carpetas, ordenar archivos o preparar documentos.
@@ -180,7 +186,7 @@ Esta es una de las ideas más potentes del proyecto, pero también una de las m�
 
 ---
 
-### 10. Gestión de permisos y seguridad
+### 9. Gestión de permisos y seguridad
 
 **Qué cumpliría:**
 Definirá qué puede hacer Atlas, qué no puede hacer y qué acciones necesitan autorización del usuario.
@@ -190,7 +196,7 @@ Si Atlas va a interactuar con la computadora, necesita límites claros. Esta cap
 
 ---
 
-### 11. Integración con herramientas externas
+### 10. Integración con herramientas externas
 
 **Qué cumpliría:**
 Permitirá conectar Atlas con herramientas como Obsidian, Notion, calendarios u otros sistemas de organización.
@@ -200,7 +206,7 @@ Estas integraciones pueden hacer que Atlas sea mucho más útil, pero no deberí
 
 ---
 
-### 12. Interacción por voz
+### 11. Interacción por voz
 
 **Qué cumpliría:**
 Permitirá usar Atlas sin estar frente a la computadora, por ejemplo desde el auto o mientras se realizan otras actividades.
@@ -210,7 +216,7 @@ La voz puede ser muy valiosa para capturar ideas rápidamente. Pero primero Atla
 
 ---
 
-### 13. Interfaz gráfica o aplicación propia
+### 12. Interfaz gráfica o aplicación propia
 
 **Qué cumpliría:**
 Permitirá usar Atlas de forma más cómoda que desde la terminal.
@@ -220,7 +226,7 @@ Una interfaz visual puede mejorar mucho la experiencia, pero no debería ser pri
 
 ---
 
-### 14. Sistema de agentes especializados
+### 13. Sistema de agentes especializados
 
 **Qué cumpliría:**
 Permitirá dividir Atlas en agentes o módulos con responsabilidades específicas, por ejemplo:

@@ -17,12 +17,16 @@ import atlas.main as atlas_main
 from atlas.main import (
     build_corrected_text,
     calculate_balance,
+    delete_entry,
     detect_entry_type,
     detect_probable_typo,
+    find_entry,
     format_money,
     load_entries,
+    mark_task_done,
     normalize_list_type,
     parse_expense,
+    parse_id_command,
     parse_income,
     save_entry,
 )
@@ -366,3 +370,98 @@ class TestGuardadoYLectura:
             save_entry("gasto", "gasto: 3000 cafe")
 
             assert len(load_entries()) == 2
+
+    def test_cada_registro_tiene_un_id_distinto_y_creciente(self):
+        with archivo_temporal():
+            primero = save_entry("gasto", "gasto: 5000 pan")
+            segundo = save_entry("tarea", "tarea: comprar arroz")
+
+            assert primero["id"] == 1
+            assert segundo["id"] == 2
+
+    def test_el_id_no_se_repite_despues_de_borrar(self):
+        with archivo_temporal():
+            primero = save_entry("gasto", "gasto: 5000 pan")
+            save_entry("tarea", "tarea: comprar arroz")
+
+            delete_entry(primero["id"])
+            tercero = save_entry("idea", "idea: algo")
+
+            # Si se usara "cantidad de registros + 1", tercero reusaría el
+            # id 2 (quedarían dos registros, y 2+1=3 también, pero con
+            # listas más largas el riesgo de colisión es real). max()
+            # garantiza que nunca se repita un id ya usado.
+            assert tercero["id"] == 3
+
+
+class TestFindEntry:
+    def test_encuentra_un_registro_existente(self):
+        with archivo_temporal():
+            entry = save_entry("gasto", "gasto: 5000 pan")
+
+            assert find_entry(entry["id"]) == entry
+
+    def test_devuelve_none_si_no_existe(self):
+        with archivo_temporal():
+            assert find_entry(999) is None
+
+
+class TestDeleteEntry:
+    def test_borra_el_registro_indicado(self):
+        with archivo_temporal():
+            entry = save_entry("gasto", "gasto: 5000 pan")
+
+            assert delete_entry(entry["id"]) is True
+            assert load_entries() == []
+
+    def test_no_toca_los_demas_registros(self):
+        with archivo_temporal():
+            primero = save_entry("gasto", "gasto: 5000 pan")
+            segundo = save_entry("tarea", "tarea: comprar arroz")
+
+            delete_entry(primero["id"])
+
+            restantes = load_entries()
+
+            assert len(restantes) == 1
+            assert restantes[0]["id"] == segundo["id"]
+
+    def test_borrar_un_id_inexistente_devuelve_false(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 pan")
+
+            assert delete_entry(999) is False
+            assert len(load_entries()) == 1
+
+
+class TestMarkTaskDone:
+    def test_marca_una_tarea_como_hecha(self):
+        with archivo_temporal():
+            tarea = save_entry("tarea", "tarea: comprar arroz")
+
+            assert mark_task_done(tarea["id"]) == "ok"
+            assert load_entries()[0]["done"] is True
+
+    def test_no_es_tarea(self):
+        with archivo_temporal():
+            gasto = save_entry("gasto", "gasto: 5000 pan")
+
+            assert mark_task_done(gasto["id"]) == "no_es_tarea"
+
+    def test_id_inexistente(self):
+        with archivo_temporal():
+            assert mark_task_done(999) == "no_encontrado"
+
+
+class TestParseIdCommand:
+    def test_id_valido(self):
+        assert parse_id_command("borrar 3", "borrar") == 3
+
+    def test_la_palabra_clave_no_coincide(self):
+        assert parse_id_command("hecha 3", "borrar") is None
+
+    def test_sin_id_devuelve_none(self):
+        assert parse_id_command("borrar", "borrar") is None
+
+    def test_id_no_numerico_devuelve_none(self):
+        assert parse_id_command("borrar abc", "borrar") is None

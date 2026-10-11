@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Cada registro ahora tiene un `id` estable (antes `listar` numeraba 1..10 de nuevo cada vez, sin forma de referirse a un registro puntual).
+- Nuevo comando `borrar <id>`: pide confirmar con `confirmar borrado` antes de borrar de verdad. Cualquier otra respuesta cancela sin tocar nada.
+- Nuevo comando `hecha <id>`: marca una tarea como completada (`listar` la muestra con `[x]`).
+- `listar` muestra el `#id` real de cada registro en vez de una posición que cambiaba en cada llamada.
+- Se agregaron 14 pruebas: ids, borrado, marcado de tareas y el parseo de `<comando> <id>`.
+
 ## 0.3.0
 
 - Se agregaron ingresos: `ingreso: 100000 uber` (mismo parser seguro que los gastos).
