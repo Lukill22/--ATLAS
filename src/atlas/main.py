@@ -14,6 +14,14 @@ DATA_FILE = Path(
     os.environ.get("ATLAS_DATA_FILE", PROJECT_ROOT / "data" / "entries.jsonl")
 )
 
+# La memoria es un archivo distinto de entries.jsonl a propósito: no es un
+# registro cronológico que crece, es un conjunto de hechos (clave -> valor)
+# que se actualizan con el tiempo ("presupuesto mensual" hoy puede valer
+# 200000 y el mes que viene otra cosa, pero sigue siendo un solo hecho).
+MEMORY_FILE = Path(
+    os.environ.get("ATLAS_MEMORY_FILE", PROJECT_ROOT / "data" / "memory.json")
+)
+
 # Un monto es una secuencia de dígitos, opcionalmente agrupada de a 3 con
 # "." o "," como separador de miles (ej. "15000", "15.000", "1.500.000").
 _AMOUNT_PATTERN = re.compile(r"^\d{1,3}([.,]\d{3})*$|^\d+$")
@@ -168,6 +176,107 @@ def create_backup() -> Path | None:
             file.write(line + "\n")
 
     return backup_path
+
+
+def load_memory() -> dict:
+    """Lee los hechos guardados en memoria. {} si no hay nada o está dañado."""
+
+    if not MEMORY_FILE.exists():
+        return {}
+
+    try:
+        with MEMORY_FILE.open("r", encoding="utf-8") as file:
+            memoria = json.load(file)
+
+    except json.JSONDecodeError:
+        print("Atlas: No pude leer la memoria guardada; la trato como vacía.")
+        return {}
+
+    return memoria if isinstance(memoria, dict) else {}
+
+
+def _save_memory(memoria: dict) -> None:
+    """Reescribe el archivo de memoria completo, de forma segura (igual que
+    _write_lines: archivo temporal + reemplazo, para no dejarlo a medias).
+    """
+
+    MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temp_file = MEMORY_FILE.with_name(MEMORY_FILE.name + ".tmp")
+
+    try:
+        with temp_file.open("w", encoding="utf-8") as file:
+            json.dump(memoria, file, ensure_ascii=False, indent=2)
+            file.flush()
+            os.fsync(file.fileno())
+
+        os.replace(temp_file, MEMORY_FILE)
+
+    except BaseException:
+        with suppress(OSError):
+            temp_file.unlink()
+
+        raise
+
+
+def parse_remember_command(text: str) -> tuple[str, str] | None:
+    """Interpreta "recordar <clave>: <valor>". None si no matchea ese formato."""
+
+    if not text.lower().startswith("recordar "):
+        return None
+
+    resto = text[len("recordar ") :]
+
+    if ":" not in resto:
+        return None
+
+    clave, _, valor = resto.partition(":")
+    clave = clave.strip().lower()
+    valor = valor.strip()
+
+    if not clave or not valor:
+        return None
+
+    return clave, valor
+
+
+def remember_fact(clave: str, valor: str) -> None:
+    """Guarda o actualiza un hecho en memoria."""
+
+    memoria = load_memory()
+    memoria[clave] = valor
+    _save_memory(memoria)
+
+
+def forget_fact(clave: str) -> bool:
+    """Borra un hecho de memoria. Devuelve True si existía."""
+
+    memoria = load_memory()
+    clave = clave.strip().lower()
+
+    if clave not in memoria:
+        return False
+
+    del memoria[clave]
+    _save_memory(memoria)
+
+    return True
+
+
+def show_memory() -> None:
+    """Muestra todos los hechos guardados en memoria."""
+
+    memoria = load_memory()
+
+    if not memoria:
+        print("Atlas: Todavía no recuerdo nada.")
+        return
+
+    print("\nAtlas: Esto es lo que recuerdo:\n")
+
+    for clave, valor in memoria.items():
+        print(f"  {clave}: {valor}")
+
+    print()
 
 
 def save_entry(entry_type: str, text: str) -> dict:
@@ -641,6 +750,10 @@ Comandos disponibles:
 
   backup
 
+  recordar <algo>: <valor>
+  que recordas
+  olvidar <algo>
+
   ayuda
   salir
 """)
@@ -744,6 +857,32 @@ def main() -> None:
 
         if command == "backup":
             show_backup()
+            continue
+
+        if command in {"recordar", "que recordas"}:
+            show_memory()
+            continue
+
+        if command.startswith("recordar "):
+            hecho = parse_remember_command(user_input)
+
+            if hecho is None:
+                print("Atlas: Usá este formato: recordar <algo>: <valor>")
+            else:
+                clave, valor = hecho
+                remember_fact(clave, valor)
+                print(f"Atlas: Voy a recordar que {clave} es {valor}.")
+
+            continue
+
+        if command.startswith("olvidar "):
+            clave = command[len("olvidar ") :].strip()
+
+            if clave and forget_fact(clave):
+                print(f"Atlas: Me olvidé de '{clave}'.")
+            else:
+                print(f"Atlas: No tenía nada guardado como '{clave}'.")
+
             continue
 
         delete_id = parse_id_command(command, "borrar")

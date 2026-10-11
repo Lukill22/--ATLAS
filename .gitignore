@@ -30,3 +30,4 @@ Thumbs.db
 /data/*.db
 /data/entries.jsonl
 /data/*.bak.jsonl
+/data/memory.json

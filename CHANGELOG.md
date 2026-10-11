@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Memoria local simple: `recordar <algo>: <valor>` guarda un hecho (clave -> valor) en `data/memory.json`, separado de `entries.jsonl` porque no es un registro cronológico, es información que se actualiza (recordar de nuevo pisa el valor anterior, no lo duplica).
+- `que recordas` lista todo lo guardado; `olvidar <algo>` borra un hecho puntual.
+- La escritura de memoria es atómica, igual que `entries.jsonl` (archivo temporal + reemplazo).
+- `data/memory.json` queda afuera de Git.
+- Se agregaron 13 pruebas (112 en total).
+
 ## 0.4.4
 
 - `listar` ahora acepta un filtro de período: `listar hoy`, `listar mes`, `listar tareas hoy`, `listar gastos mes`, etc.

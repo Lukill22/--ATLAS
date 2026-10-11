@@ -113,8 +113,15 @@ durante el desarrollo (datos reales perdidos sin ninguna copia).
 ### Sprint 3.4: filtro de tiempo para `listar` — terminado
 
 `listar hoy`, `listar mes`, `listar tareas hoy`, `listar gastos mes`, etc. Se
-sacó `normalize_list_type` (quedó redundante con `parse_list_command`). 99
-pruebas automatizadas en total.
+sacó `normalize_list_type` (quedó redundante con `parse_list_command`).
+
+### Sprint 4: memoria local simple — terminado
+
+`recordar <algo>: <valor>` guarda un hecho en `data/memory.json` (clave ->
+valor, se actualiza en vez de acumularse); `que recordas` lista todo; `olvidar
+<algo>` borra uno. Construido sin un problema validado por uso real todavía —
+revisar si la forma elegida sigue teniendo sentido después de usar Atlas un
+tiempo. 112 pruebas automatizadas en total.
 
 ## Funciones actuales
 
@@ -139,6 +146,9 @@ balance mes
 borrar <id>
 hecha <id>
 backup
+recordar <algo>: <valor>
+que recordas
+olvidar <algo>
 ayuda
 salir
 ```
@@ -147,8 +157,7 @@ salir
 
 ### Futuro cercano
 
-- Probar Atlas con uso real, varios días (ingresos, balance, borrar/hecha, filtros de tiempo).
-- Memoria local simple.
+- Probar Atlas con uso real, varios días (todo lo construido hasta ahora, incluida la memoria). No hay ninguna función nueva anotada: el próximo problema real todavía no apareció.
 
 ### Futuro medio
 

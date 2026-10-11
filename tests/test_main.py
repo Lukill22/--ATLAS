@@ -24,28 +24,35 @@ from atlas.main import (
     detect_probable_typo,
     filter_by_period,
     find_entry,
+    forget_fact,
     format_money,
     load_entries,
+    load_memory,
     mark_task_done,
     parse_expense,
     parse_id_command,
     parse_income,
     parse_list_command,
+    parse_remember_command,
+    remember_fact,
     save_entry,
 )
 
 
 @contextmanager
 def archivo_temporal():
-    """Redirige DATA_FILE a un archivo temporal durante la prueba.
-
-    Así las pruebas de guardado y lectura nunca tocan `data/entries.jsonl`.
+    """Redirige DATA_FILE y MEMORY_FILE a un directorio temporal durante la
+    prueba. Así las pruebas de guardado y lectura nunca tocan los archivos
+    reales de `data/`.
     """
 
     with tempfile.TemporaryDirectory() as carpeta:
         ruta = Path(carpeta) / "entries.jsonl"
+        ruta_memoria = Path(carpeta) / "memory.json"
 
-        with patch.object(atlas_main, "DATA_FILE", ruta):
+        with patch.object(atlas_main, "DATA_FILE", ruta), patch.object(
+            atlas_main, "MEMORY_FILE", ruta_memoria
+        ):
             yield ruta
 
 
@@ -677,3 +684,76 @@ class TestCreateBackup:
             backup_path = create_backup()
 
             assert ilegible in backup_path.read_text(encoding="utf-8")
+
+
+class TestParseRememberCommand:
+    def test_formato_valido(self):
+        assert parse_remember_command("recordar presupuesto: 200000") == (
+            "presupuesto",
+            "200000",
+        )
+
+    def test_no_distingue_mayusculas_en_la_clave(self):
+        assert parse_remember_command("recordar Presupuesto: 200000") == (
+            "presupuesto",
+            "200000",
+        )
+
+    def test_sin_dos_puntos_devuelve_none(self):
+        assert parse_remember_command("recordar presupuesto 200000") is None
+
+    def test_sin_prefijo_devuelve_none(self):
+        assert parse_remember_command("presupuesto: 200000") is None
+
+    def test_clave_vacia_devuelve_none(self):
+        assert parse_remember_command("recordar : 200000") is None
+
+    def test_valor_vacio_devuelve_none(self):
+        assert parse_remember_command("recordar presupuesto:") is None
+
+
+class TestMemoria:
+    def test_memoria_vacia_al_principio(self):
+        with archivo_temporal():
+            assert load_memory() == {}
+
+    def test_recordar_y_leer_un_hecho(self):
+        with archivo_temporal():
+            remember_fact("presupuesto", "200000")
+
+            assert load_memory() == {"presupuesto": "200000"}
+
+    def test_recordar_de_nuevo_actualiza_en_vez_de_duplicar(self):
+        with archivo_temporal():
+            remember_fact("presupuesto", "200000")
+            remember_fact("presupuesto", "250000")
+
+            assert load_memory() == {"presupuesto": "250000"}
+
+    def test_recordar_no_borra_otros_hechos(self):
+        with archivo_temporal():
+            remember_fact("presupuesto", "200000")
+            remember_fact("cumpleaños", "5 de mayo")
+
+            assert load_memory() == {
+                "presupuesto": "200000",
+                "cumpleaños": "5 de mayo",
+            }
+
+    def test_olvidar_un_hecho_existente(self):
+        with archivo_temporal():
+            remember_fact("presupuesto", "200000")
+
+            assert forget_fact("presupuesto") is True
+            assert load_memory() == {}
+
+    def test_olvidar_algo_inexistente_devuelve_false(self):
+        with archivo_temporal():
+            assert forget_fact("algo") is False
+
+    def test_memoria_dañada_se_trata_como_vacia(self):
+        with archivo_temporal() as ruta:
+            ruta_memoria = ruta.with_name("memory.json")
+            ruta_memoria.write_text("esto no es json", encoding="utf-8")
+
+            assert load_memory() == {}
