@@ -76,6 +76,21 @@ Versión mínima:
 Fuera de alcance (a propósito): editar el texto libre de un registro ya guardado
 (hoy la única forma de "corregir" un texto es borrarlo y volver a crearlo).
 
+## Sprint 3.2 — Reescritura segura y balance mensual (terminado)
+
+Problema que resuelve: `borrar`/`hecha` reescribían el archivo entero a partir de
+`load_entries()`, que descarta cualquier línea que no pueda leerse como JSON — un
+borrado podía llevarse puesto, en silencio, una línea dañada sin relación alguna.
+Además, `total gastos`/`balance dia` no tenían forma de responder "¿cuánto gasté
+este mes?".
+
+Versión mínima:
+
+- [x] `_read_lines`/`_write_lines` operan sobre el archivo línea por línea, conservando intactas las que Atlas no puede interpretar.
+- [x] La escritura es atómica (archivo temporal + reemplazo): si algo falla a mitad de camino, el archivo original queda intacto.
+- [x] `balance mes`: igual que `balance dia`, pero agrupa todo el mes actual.
+- [x] Pruebas automatizadas para ambas cosas.
+
 ---
 
 ## Futuro de Atlas
@@ -92,13 +107,13 @@ La visión de Atlas es crecer de forma gradual, evitando agregar complejidad inn
 
 ## Futuro cercano
 
-### 1. Comandos de consulta con filtro de tiempo
+### 1. Filtro de tiempo para `listar`
 
 **Qué cumpliría:**
-Permitirá preguntas como `total gastos este mes` o `listar tareas de hoy`, en vez de solo totales acumulados de todo el tiempo.
+`balance mes` ya resuelve "cuánto gasté este mes" (Sprint 3.2). Falta la otra mitad: `listar tareas de hoy` o `listar notas de esta semana`, para no tener que revisar las tareas/notas de siempre junto con las de hoy.
 
 **Por qué es importante:**
-"Cuánto gasté este mes" es la pregunta más común de un registro de gastos personal, y hoy Atlas no la puede responder aunque ya guarda la fecha de cada entrada.
+Es la misma idea que el balance mensual, aplicada a tareas/notas/ideas en vez de a montos.
 
 ---
 

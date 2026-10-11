@@ -17,6 +17,7 @@ import atlas.main as atlas_main
 from atlas.main import (
     build_corrected_text,
     calculate_balance,
+    calculate_monthly_balance,
     delete_entry,
     detect_entry_type,
     detect_probable_typo,
@@ -310,6 +311,40 @@ class TestCalculateBalance:
         assert calculate_balance(entries, self.HOY)["income"] == 0
 
 
+class TestCalculateMonthlyBalance:
+    HOY = date(2026, 10, 11)
+
+    def test_suma_todo_el_mes_no_solo_el_dia(self):
+        entries = [
+            {"created_at": "2026-10-01T09:00:00", "type": "ingreso", "amount": 100000},
+            {"created_at": "2026-10-11T12:00:00", "type": "gasto", "amount": 30000},
+            {"created_at": "2026-10-30T18:00:00", "type": "gasto", "amount": 5000},
+        ]
+
+        assert calculate_monthly_balance(entries, self.HOY) == {
+            "income": 100000,
+            "expenses": 35000,
+            "balance": 65000,
+        }
+
+    def test_ignora_meses_distintos(self):
+        entries = [
+            {"created_at": "2026-09-30T23:59:00", "type": "gasto", "amount": 50000},
+            {"created_at": "2026-10-01T00:00:00", "type": "gasto", "amount": 1000},
+            {"created_at": "2026-11-01T00:00:00", "type": "gasto", "amount": 7000},
+        ]
+
+        assert calculate_monthly_balance(entries, self.HOY)["expenses"] == 1000
+
+    def test_no_confunde_octubre_con_octubre_del_otro_anio(self):
+        # "2026-10" no debe matchear "2025-10-...": el prefijo incluye el año.
+        entries = [
+            {"created_at": "2025-10-11T09:00:00", "type": "gasto", "amount": 9999}
+        ]
+
+        assert calculate_monthly_balance(entries, self.HOY)["expenses"] == 0
+
+
 class TestGuardadoYLectura:
     def test_guarda_un_gasto_con_monto_y_descripcion(self):
         with archivo_temporal() as ruta:
@@ -465,3 +500,74 @@ class TestParseIdCommand:
 
     def test_id_no_numerico_devuelve_none(self):
         assert parse_id_command("borrar abc", "borrar") is None
+
+
+class TestReescrituraSegura:
+    """Borrar o modificar un registro no puede perder ni dañar otros datos."""
+
+    LINEA_1 = '{"id": 1, "created_at": "2026-10-01T10:00:00", "type": "tarea", "text": "tarea: a"}'
+    LINEA_2 = (
+        '{"id": 2, "created_at": "2026-10-01T11:00:00", "type": "nota", "text": "hola"}'
+    )
+    ILEGIBLE = '{"created_at": "2026-09-02T10:00:00", "type": "nota", "text": "cortada'
+
+    def _escribir(self, ruta, *lineas):
+        ruta.write_text("\n".join(lineas) + "\n", encoding="utf-8")
+
+    def test_borrar_conserva_las_lineas_ilegibles(self):
+        with archivo_temporal() as ruta:
+            self._escribir(ruta, self.ILEGIBLE, self.LINEA_1, self.LINEA_2)
+
+            assert delete_entry(1) is True
+
+            assert ruta.read_text(encoding="utf-8").splitlines() == [
+                self.ILEGIBLE,
+                self.LINEA_2,
+            ]
+
+    def test_hecha_conserva_las_lineas_ilegibles_y_el_resto_intacto(self):
+        with archivo_temporal() as ruta:
+            self._escribir(ruta, self.ILEGIBLE, self.LINEA_1, self.LINEA_2)
+
+            assert mark_task_done(1) == "ok"
+
+            lineas = ruta.read_text(encoding="utf-8").splitlines()
+            assert lineas[0] == self.ILEGIBLE
+            assert lineas[2] == self.LINEA_2
+            assert json.loads(lineas[1])["done"] is True
+
+    def test_borrar_un_id_inexistente_no_toca_el_archivo(self):
+        with archivo_temporal() as ruta:
+            self._escribir(ruta, self.ILEGIBLE, self.LINEA_1)
+            antes = ruta.read_bytes()
+
+            assert delete_entry(99) is False
+            assert ruta.read_bytes() == antes
+
+    def test_hecha_sobre_algo_que_no_es_tarea_no_toca_el_archivo(self):
+        with archivo_temporal() as ruta:
+            self._escribir(ruta, self.LINEA_2)
+            antes = ruta.read_bytes()
+
+            assert mark_task_done(2) == "no_es_tarea"
+            assert ruta.read_bytes() == antes
+
+    def test_si_falla_el_reemplazo_el_original_queda_intacto(self):
+        with archivo_temporal() as ruta:
+            self._escribir(ruta, self.LINEA_1, self.LINEA_2)
+            antes = ruta.read_bytes()
+
+            with patch.object(atlas_main.os, "replace", side_effect=OSError("falla")):
+                with pytest.raises(OSError):
+                    delete_entry(1)
+
+            assert ruta.read_bytes() == antes
+            assert [p.name for p in ruta.parent.iterdir()] == ["entries.jsonl"]
+
+    def test_no_queda_archivo_temporal_despues_de_borrar(self):
+        with archivo_temporal() as ruta:
+            self._escribir(ruta, self.LINEA_1, self.LINEA_2)
+
+            delete_entry(1)
+
+            assert [p.name for p in ruta.parent.iterdir()] == ["entries.jsonl"]

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.2
+
+- Nuevo comando `balance mes`: igual que `balance dia`, pero agrupa ingresos y gastos de todo el mes actual en vez de solo el día de hoy.
+- `calculate_balance` y `calculate_monthly_balance` ahora comparten la misma lógica de suma (`_sum_income_and_expenses`), solo cambia el prefijo de fecha que se usa para filtrar.
+- Se agregaron 3 pruebas para el balance mensual.
+
+## 0.4.1
+
+- `borrar <id>` y `hecha <id>` ya no pierden líneas que Atlas no puede leer: antes, al reescribir el archivo, esas líneas se eliminaban sin avisar.
+- La reescritura del archivo de datos ahora es segura: se escribe a un archivo temporal y se reemplaza al final, así una falla a mitad de camino no deja el archivo vacío.
+- Se agregaron 6 pruebas de reescritura segura.
+
 ## 0.4.0
 
 - Cada registro ahora tiene un `id` estable (antes `listar` numeraba 1..10 de nuevo cada vez, sin forma de referirse a un registro puntual).

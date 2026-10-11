@@ -1,3 +1,4 @@
+from contextlib import suppress
 from datetime import date, datetime
 from pathlib import Path
 import difflib
@@ -95,18 +96,57 @@ def _next_id(entries: list[dict]) -> int:
     return max(existing_ids, default=0) + 1
 
 
-def _write_entries(entries: list[dict]) -> None:
-    """Reescribe el archivo completo con la lista de registros dada.
+def _read_lines() -> list[str]:
+    """Lee las líneas no vacías del archivo de datos, tal cual están escritas.
 
-    A diferencia de save_entry (que solo agrega una línea), esto se usa
-    para borrar o modificar un registro que ya existía.
+    Incluye las líneas que Atlas no puede interpretar como JSON: así, al
+    reescribir el archivo, nunca se pierde una línea que Atlas no entendió.
+    """
+
+    if not DATA_FILE.exists():
+        return []
+
+    with DATA_FILE.open("r", encoding="utf-8") as file:
+        return [line.strip() for line in file if line.strip()]
+
+
+def _parse_line(line: str) -> dict | None:
+    """Interpreta una línea como registro, o None si no es un registro válido."""
+
+    try:
+        entry = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+
+    return entry if isinstance(entry, dict) else None
+
+
+def _write_lines(lines: list[str]) -> None:
+    """Reemplaza el archivo de datos por las líneas dadas, de forma segura.
+
+    Primero escribe todo en un archivo temporal y recién al final lo
+    reemplaza por el real (os.replace). Si algo falla a mitad de camino, el
+    archivo original queda intacto en vez de quedar vacío o a medio escribir.
     """
 
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temp_file = DATA_FILE.with_name(DATA_FILE.name + ".tmp")
 
-    with DATA_FILE.open("w", encoding="utf-8") as file:
-        for entry in entries:
-            file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    try:
+        with temp_file.open("w", encoding="utf-8") as file:
+            for line in lines:
+                file.write(line + "\n")
+
+            file.flush()
+            os.fsync(file.fileno())
+
+        os.replace(temp_file, DATA_FILE)
+
+    except BaseException:
+        with suppress(OSError):
+            temp_file.unlink()
+
+        raise
 
 
 def save_entry(entry_type: str, text: str) -> dict:
@@ -185,15 +225,27 @@ def find_entry(entry_id: int) -> dict | None:
 
 
 def delete_entry(entry_id: int) -> bool:
-    """Borra el registro con el id dado. Devuelve True si existía."""
+    """Borra el registro con el id dado. Devuelve True si existía.
 
-    entries = load_entries()
-    remaining = [entry for entry in entries if entry.get("id") != entry_id]
+    Las líneas que Atlas no puede leer se conservan tal cual: borrar un
+    registro nunca debe llevarse puesto otro.
+    """
 
-    if len(remaining) == len(entries):
+    lines = _read_lines()
+    remaining = []
+
+    for line in lines:
+        entry = _parse_line(line)
+
+        if entry is not None and entry.get("id") == entry_id:
+            continue
+
+        remaining.append(line)
+
+    if len(remaining) == len(lines):
         return False
 
-    _write_entries(remaining)
+    _write_lines(remaining)
 
     return True
 
@@ -202,20 +254,26 @@ def mark_task_done(entry_id: int) -> str:
     """Marca una tarea como hecha.
 
     Devuelve "ok", "no_es_tarea" (el id existe pero no es una tarea) o
-    "no_encontrado" (no hay ningún registro con ese id).
+    "no_encontrado" (no hay ningún registro con ese id). Solo cambia la
+    línea de esa tarea; el resto del archivo queda exactamente igual.
     """
 
-    entries = load_entries()
+    lines = _read_lines()
 
-    for entry in entries:
-        if entry.get("id") == entry_id:
-            if entry.get("type") != "tarea":
-                return "no_es_tarea"
+    for index, line in enumerate(lines):
+        entry = _parse_line(line)
 
-            entry["done"] = True
-            _write_entries(entries)
+        if entry is None or entry.get("id") != entry_id:
+            continue
 
-            return "ok"
+        if entry.get("type") != "tarea":
+            return "no_es_tarea"
+
+        entry["done"] = True
+        lines[index] = json.dumps(entry, ensure_ascii=False)
+        _write_lines(lines)
+
+        return "ok"
 
     return "no_encontrado"
 
@@ -405,19 +463,21 @@ def show_total_expenses() -> None:
     print(f"Atlas: Gastaste {format_money(total)} en total.")
 
 
-def calculate_balance(entries: list[dict], day: date) -> dict:
-    """Suma ingresos y gastos de un día y calcula el balance.
+def _sum_income_and_expenses(entries: list[dict], period_prefix: str) -> dict:
+    """Suma ingresos y gastos cuyo "created_at" empiece con el prefijo dado
+    y calcula el balance. Es una función pura (no lee archivos ni imprime)
+    para poder probarla.
 
-    Es una función pura (no lee archivos ni imprime) para poder probarla.
+    El prefijo define el período: un día completo ("2026-10-11") o un mes
+    entero ("2026-10"), ya que created_at siempre arranca con esa fecha.
     Los registros sin "amount" numérico se ignoran, igual que en "total gastos".
     """
 
-    prefix = day.isoformat()
     income = 0
     expenses = 0
 
     for entry in entries:
-        if not str(entry.get("created_at", "")).startswith(prefix):
+        if not str(entry.get("created_at", "")).startswith(period_prefix):
             continue
 
         amount = entry.get("amount")
@@ -437,12 +497,39 @@ def calculate_balance(entries: list[dict], day: date) -> dict:
     }
 
 
+def calculate_balance(entries: list[dict], day: date) -> dict:
+    """Suma ingresos y gastos de un día y calcula el balance."""
+
+    return _sum_income_and_expenses(entries, day.isoformat())
+
+
+def calculate_monthly_balance(entries: list[dict], day: date) -> dict:
+    """Igual que calculate_balance, pero agrupa por mes en vez de por día.
+
+    El mes se toma de "day" (normalmente date.today()), no del registro.
+    """
+
+    return _sum_income_and_expenses(entries, day.strftime("%Y-%m"))
+
+
 def show_daily_balance() -> None:
     """Muestra ingresos, gastos y balance de hoy."""
 
     result = calculate_balance(load_entries(), date.today())
 
     print("\nAtlas: Balance de hoy\n")
+    print(f"  Ingresos: {format_money(result['income'])}")
+    print(f"  Gastos:   {format_money(result['expenses'])}")
+    print(f"  Balance:  {format_money(result['balance'])}")
+    print()
+
+
+def show_monthly_balance() -> None:
+    """Muestra ingresos, gastos y balance del mes actual."""
+
+    result = calculate_monthly_balance(load_entries(), date.today())
+
+    print("\nAtlas: Balance del mes\n")
     print(f"  Ingresos: {format_money(result['income'])}")
     print(f"  Gastos:   {format_money(result['expenses'])}")
     print(f"  Balance:  {format_money(result['balance'])}")
@@ -470,6 +557,7 @@ Comandos disponibles:
 
   total gastos
   balance dia
+  balance mes
 
   borrar <id>
   hecha <id>
@@ -556,6 +644,10 @@ def main() -> None:
 
         if command == "balance dia":
             show_daily_balance()
+            continue
+
+        if command == "balance mes":
+            show_monthly_balance()
             continue
 
         entry_type_filter = normalize_list_type(command)

@@ -95,8 +95,14 @@ hoy con `balance dia`. Falta probarlo en el día a día con datos reales.
 Cada registro tiene un id estable. `borrar <id>` pide confirmación explícita
 (`confirmar borrado`) antes de borrar de verdad; `hecha <id>` marca una tarea como
 completada. Atlas también detecta errores de tipeo en los prefijos (sin ":", en
-plural, o con typos como "gsato") y pregunta antes de guardar nada. 76 pruebas
-automatizadas en total.
+plural, o con typos como "gsato") y pregunta antes de guardar nada.
+
+### Sprint 3.2: reescritura segura y balance mensual — terminado
+
+`borrar`/`hecha` ya no pueden perder una línea dañada del archivo al reescribirlo
+(antes se iba en silencio), y la escritura es atómica (archivo temporal +
+reemplazo). Nuevo comando `balance mes`, con la misma lógica que `balance dia`
+pero agrupando todo el mes. 85 pruebas automatizadas en total.
 
 ## Funciones actuales
 
@@ -113,6 +119,7 @@ listar ideas
 listar notas
 total gastos
 balance dia
+balance mes
 borrar <id>
 hecha <id>
 ayuda
@@ -123,8 +130,8 @@ salir
 
 ### Futuro cercano
 
-- Probar el Sprint 3 (ingresos y balance) y el Sprint 3.1 (borrar/hecha) con uso real, varios días.
-- Consultas con filtro de tiempo (este mes, esta semana).
+- Probar el Sprint 3 (ingresos y balance) con uso real, varios días.
+- Filtro de tiempo para `listar` (tareas/notas de hoy, de esta semana).
 - Memoria local simple.
 
 ### Futuro medio
