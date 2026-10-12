@@ -142,8 +142,14 @@ Se agregó la misma pregunta "¿quisiste escribir...?" que la terminal
 (resuelta en `/agregar/confirmar`), un rediseño tipo chat (composer
 redondeado, tarjetas en vez de tabla), el `viewport` que faltaba, CSS
 responsive, y el servidor ahora escucha en la red local para poder abrirse
-desde el celular (sin contraseña todavía, decisión explícita). 127 pruebas
-automatizadas en total.
+desde el celular (sin contraseña todavía, decisión explícita).
+
+### Sprint 5.2: composer universal y pestañas por tipo — terminado
+
+El composer web ahora entiende los mismos comandos que la terminal (`ayuda`,
+`listar`, `balance`, `backup`, `recordar`/`que recordás`/`olvidar`, etc.), no
+solo capturas. Las secciones por tipo pasan de estar apiladas a ser pestañas
+(CSS puro, sin JavaScript). 138 pruebas automatizadas en total.
 
 ## Funciones actuales
 

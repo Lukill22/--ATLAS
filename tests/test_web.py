@@ -33,15 +33,42 @@ class TestIndex:
             assert b"pan" in respuesta.data
             assert "$5.000".encode("utf-8") in respuesta.data
 
-    def test_filtro_por_tipo(self):
+    def test_las_secciones_estan_divididas_por_tipo(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
             cliente().post("/agregar", data={"texto": "idea: mejorar atlas"})
 
-            respuesta = cliente().get("/?tipo=tarea")
+            html = cliente().get("/").data.decode("utf-8")
 
-            assert b"comprar arroz" in respuesta.data
-            assert b"mejorar atlas" not in respuesta.data
+            # Cada registro aparece dentro del panel de pestaña de su
+            # propio tipo, no en el de otro tipo. Se busca el div real
+            # (class="tab-panel panel-X"), no la regla de CSS del mismo
+            # nombre que aparece antes, en el <style>.
+            panel_tarea = html.split('class="tab-panel panel-tarea"')[1].split(
+                'class="tab-panel panel-idea"'
+            )[0]
+            panel_idea = html.split('class="tab-panel panel-idea"')[1].split(
+                'class="tab-panel panel-nota"'
+            )[0]
+
+            assert "comprar arroz" in panel_tarea
+            assert "mejorar atlas" not in panel_tarea
+            assert "mejorar atlas" in panel_idea
+            assert "comprar arroz" not in panel_idea
+
+    def test_filtro_por_periodo(self):
+        with archivo_temporal() as ruta:
+            ruta.write_text(
+                '{"id": 1, "created_at": "2020-01-01T10:00:00", "type": '
+                '"tarea", "text": "tarea: vieja"}\n',
+                encoding="utf-8",
+            )
+            cliente().post("/agregar", data={"texto": "tarea: de hoy"})
+
+            respuesta = cliente().get("/?periodo=hoy")
+
+            assert b"de hoy" in respuesta.data
+            assert b"vieja" not in respuesta.data
 
     def test_no_rompe_con_una_tarea_vieja_sin_id(self):
         # Bug real: entradas guardadas antes de que existiera el id (de
@@ -160,6 +187,88 @@ class TestBorrar:
             respuesta = cliente().post("/borrar/999", follow_redirects=True)
 
             assert respuesta.status_code == 200
+
+
+class TestComandosEnElComposer:
+    """El composer entiende los mismos comandos que la terminal, no solo
+    capturas nuevas (gasto/tarea/idea/nota)."""
+
+    def test_ayuda_no_guarda_nada_y_responde(self):
+        with archivo_temporal():
+            respuesta = cliente().post("/agregar", data={"texto": "ayuda"})
+
+            assert load_entries() == []
+            assert b"Comandos disponibles" in respuesta.data
+
+    def test_total_gastos(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 pan"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "total gastos"})
+
+            assert "$5.000".encode("utf-8") in respuesta.data
+            assert len(load_entries()) == 1  # no agregó un segundo registro
+
+    def test_balance_dia(self):
+        with archivo_temporal():
+            respuesta = cliente().post("/agregar", data={"texto": "balance dia"})
+
+            assert b"Balance" in respuesta.data
+
+    def test_backup_crea_copia(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 pan"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "backup"})
+
+            assert b"Copia de seguridad guardada" in respuesta.data
+
+    def test_recordar_y_que_recordas(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "recordar presupuesto: 200000"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "que recordas"})
+
+            assert b"presupuesto: 200000" in respuesta.data
+            assert load_entries() == []  # no se guarda como entrada normal
+
+    def test_olvidar(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "recordar presupuesto: 200000"})
+            respuesta = cliente().post(
+                "/agregar", data={"texto": "olvidar presupuesto"}
+            )
+
+            assert b"Me olvid" in respuesta.data
+
+    def test_listar_tareas(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "listar tareas"})
+
+            assert b"comprar arroz" in respuesta.data
+
+    def test_hecha_por_id_desde_el_composer(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
+            entry_id = load_entries()[0]["id"]
+
+            respuesta = cliente().post("/agregar", data={"texto": f"hecha {entry_id}"})
+
+            assert load_entries()[0]["done"] is True
+            assert b"Marqu" in respuesta.data
+
+    def test_borrar_por_id_desde_el_composer_manda_a_confirmar(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 pan"})
+            entry_id = load_entries()[0]["id"]
+
+            respuesta = cliente().post("/agregar", data={"texto": f"borrar {entry_id}"})
+
+            assert respuesta.status_code == 302
+            assert f"/borrar/{entry_id}" in respuesta.headers["Location"]
+            assert len(load_entries()) == 1  # todavía no se borró
 
 
 class TestHecha:

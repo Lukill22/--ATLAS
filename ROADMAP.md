@@ -192,6 +192,20 @@ Versión mínima:
 Fuera de alcance (a propósito): contraseña o login (necesario si esto se
 expone más allá de la red de casa), acceso desde fuera de la red local.
 
+## Sprint 5.2 — Composer como comando universal y pestañas por tipo (terminado)
+
+Problema que resuelve: usándola de verdad aparecieron dos límites más —
+escribir `ayuda` (o cualquier comando que no fuera una captura) se guardaba
+como nota en vez de hacer lo que hace en la terminal, y tener las 5
+secciones apiladas una debajo de la otra se sentía desordenado.
+
+Versión mínima:
+
+- [x] El composer entiende los mismos comandos que la terminal: `ayuda`, `listar [tipo] [período]`, `total gastos`, `balance dia`/`mes`, `backup`, `borrar <id>`, `hecha <id>`, `recordar`/`que recordás`/`olvidar`. La respuesta aparece como una burbuja.
+- [x] `HELP_TEXT` y `calculate_total_expenses()` extraídos en `main.py` para que la terminal y la web nunca muestren cosas distintas.
+- [x] Las secciones (Gastos, Ingresos, Tareas, Ideas, Notas) pasan de estar apiladas a ser pestañas (una visible a la vez, con la cantidad en la etiqueta), con CSS puro, sin JavaScript.
+- [x] Pruebas automatizadas de los comandos nuevos y de que cada registro aparece en la pestaña correcta.
+
 ---
 
 ## Futuro de Atlas

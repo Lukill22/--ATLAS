@@ -637,20 +637,27 @@ def show_entries(entry_type: str | None = None, period: str | None = None) -> No
     print()
 
 
-def show_total_expenses() -> None:
-    """Calcula y muestra el total de gastos registrados."""
-
-    entries = load_entries()
-
-    expenses = [entry for entry in entries if entry.get("type") == "gasto"]
+def calculate_total_expenses(entries: list[dict]) -> int:
+    """Suma todos los gastos de la lista dada. Función pura, sin I/O."""
 
     total = 0
 
-    for expense in expenses:
-        amount = expense.get("amount")
+    for entry in entries:
+        if entry.get("type") != "gasto":
+            continue
+
+        amount = entry.get("amount")
 
         if isinstance(amount, int | float):
             total += amount
+
+    return total
+
+
+def show_total_expenses() -> None:
+    """Calcula y muestra el total de gastos registrados."""
+
+    total = calculate_total_expenses(load_entries())
 
     print(f"Atlas: Gastaste {format_money(total)} en total.")
 
@@ -728,11 +735,7 @@ def show_monthly_balance() -> None:
     print()
 
 
-def show_help() -> None:
-    """Muestra los comandos disponibles."""
-
-    print("""
-Comandos disponibles:
+HELP_TEXT = """Comandos disponibles:
 
   gasto: 15000 nafta
   ingreso: 100000 uber
@@ -765,8 +768,16 @@ Comandos disponibles:
   olvidar <algo>
 
   ayuda
-  salir
-""")
+  salir"""
+# La terminal y la interfaz web muestran este mismo texto (la web no tiene
+# "salir": cerrar la pestaña alcanza), para que la ayuda nunca se desincronice
+# entre las dos.
+
+
+def show_help() -> None:
+    """Muestra los comandos disponibles."""
+
+    print(f"\n{HELP_TEXT}\n")
 
 
 def show_backup() -> None:

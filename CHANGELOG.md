@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.4
+
+- Las secciones por tipo (Gastos, Ingresos, Tareas, Ideas, Notas) pasan de estar todas apiladas a ser **pestañas**: se ve una a la vez, con la cantidad de registros en la etiqueta. Hecho con CSS puro (radios ocultos + `:checked`), sin JavaScript.
+
+## 0.6.3
+
+- El composer de la web ahora entiende los mismos comandos que la terminal, no solo capturas nuevas: `ayuda`, `listar [tipo] [período]`, `total gastos`, `balance dia`/`mes`, `backup`, `borrar <id>`, `hecha <id>`, `recordar/que recordás/olvidar`. La respuesta aparece como una burbuja de chat.
+- El panel principal pasa de un feed mezclado con filtro de tipo a **secciones divididas por tipo** (Gastos, Ingresos, Tareas, Ideas, Notas), cada una con sus últimos registros. El filtro de período (hoy/mes/todo) sigue existiendo, ahora como pestañas simples.
+- Se extrajeron `HELP_TEXT` y `calculate_total_expenses()` en `main.py` para que la terminal y la web muestren exactamente lo mismo sin duplicar el texto ni el cálculo.
+- Se agregaron 10 pruebas del nuevo intérprete de comandos y las secciones (138 en total).
+
 ## 0.6.2
 
 - Se corrigió un bug real que rompía la interfaz web por completo (500 en todas las páginas): los registros guardados antes de que existiera el campo `id` (de versiones viejas de Atlas) hacían explotar la plantilla al intentar armar los botones "Hecha"/"Borrar" con un id inexistente. Confirmado y verificado directamente contra una copia del archivo de datos real.

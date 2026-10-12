@@ -52,8 +52,8 @@
     }
     form.capturar button.enviar:active { background: #1d4ed8; }
 
-    /* Burbuja de confirmación de typo */
-    .pregunta {
+    /* Burbuja de confirmación de typo, y de respuesta a un comando */
+    .pregunta, .respuesta {
       background: white;
       border-radius: 14px;
       border-left: 4px solid #2563eb;
@@ -61,6 +61,7 @@
       margin-bottom: 0.9rem;
       font-size: 0.95rem;
     }
+    .respuesta { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.85rem; }
     .pregunta .acciones-pregunta { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
     .pregunta button {
       border: none;
@@ -83,16 +84,46 @@
     }
     .resumen .negativo { color: #b00020; font-weight: bold; }
 
-    .filtros { margin-bottom: 1rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
-    .filtros select, .filtros button {
-      padding: 0.35rem 0.6rem;
-      font-size: 0.85rem;
+    .periodo { margin-bottom: 1.2rem; display: flex; gap: 0.4rem; }
+    .periodo a {
+      padding: 0.3rem 0.7rem;
+      font-size: 0.8rem;
       border: 1px solid #ddd;
       border-radius: 999px;
       background: white;
+      color: #444;
+      text-decoration: none;
     }
+    .periodo a.activo { background: #2563eb; color: white; border-color: #2563eb; }
 
-    /* Feed de registros, como tarjetas */
+    /* Pestañas por tipo, con CSS puro (radios ocultos), sin JavaScript */
+    .tabs { margin-bottom: 0.8rem; }
+    .tab-radio { position: absolute; opacity: 0; pointer-events: none; }
+    .tab-label {
+      display: inline-block;
+      padding: 0.4rem 0.9rem;
+      margin: 0 0.3rem 0.4rem 0;
+      border-radius: 999px;
+      background: white;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #444;
+    }
+    .tab-radio:checked + .tab-label {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+    .tab-radio:focus-visible + .tab-label { outline: 2px solid #2563eb; }
+    .tab-panel { display: none; }
+    #tab-gasto:checked ~ .tab-panel.panel-gasto,
+    #tab-ingreso:checked ~ .tab-panel.panel-ingreso,
+    #tab-tarea:checked ~ .tab-panel.panel-tarea,
+    #tab-idea:checked ~ .tab-panel.panel-idea,
+    #tab-nota:checked ~ .tab-panel.panel-nota {
+      display: block;
+    }
     .feed { display: flex; flex-direction: column; gap: 0.5rem; }
     .tarjeta {
       background: white;
@@ -119,7 +150,7 @@
       text-decoration: none;
       color: #333;
     }
-    .vacio { color: #888; text-align: center; padding: 1.5rem 0; font-size: 0.9rem; }
+    .vacio { color: #aaa; font-size: 0.85rem; padding: 0.4rem 0.2rem; }
 
     @media (max-width: 420px) {
       body { margin: 0.75rem auto; padding: 0 0.6rem 1.5rem; }
@@ -128,7 +159,7 @@
 </head>
 <body>
   <h1>Atlas</h1>
-  <p class="subtitulo">Interfaz web local — usa la misma lógica que la terminal.</p>
+  <p class="subtitulo">Interfaz web local — entiende los mismos comandos que la terminal.</p>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for categoria, mensaje in messages %}
@@ -137,7 +168,7 @@
   {% endwith %}
 
   <form class="capturar" method="post" action="{{ url_for('agregar') }}">
-    <input type="text" name="texto" placeholder="gasto: 15000 nafta, tarea: ..., o lo que sea" autofocus>
+    <input type="text" name="texto" placeholder="gasto: 15000 nafta, ayuda, listar, lo que sea" autofocus>
     <button class="enviar" type="submit" aria-label="Enviar">➤</button>
   </form>
 
@@ -155,48 +186,62 @@
   </div>
   {% endif %}
 
+  {% if respuesta %}
+  <div class="respuesta">{{ respuesta }}</div>
+  {% endif %}
+
   <div class="resumen">
     <span>Hoy: <span class="{{ 'negativo' if balance_hoy.balance < 0 else '' }}">{{ format_money(balance_hoy.balance) }}</span></span>
     <span>Este mes: <span class="{{ 'negativo' if balance_mes.balance < 0 else '' }}">{{ format_money(balance_mes.balance) }}</span></span>
   </div>
 
-  <form class="filtros" method="get" action="{{ url_for('index') }}">
-    <select name="tipo">
-      <option value="" {{ "selected" if not tipo else "" }}>Todos los tipos</option>
-      <option value="gasto" {{ "selected" if tipo == "gasto" else "" }}>Gastos</option>
-      <option value="ingreso" {{ "selected" if tipo == "ingreso" else "" }}>Ingresos</option>
-      <option value="tarea" {{ "selected" if tipo == "tarea" else "" }}>Tareas</option>
-      <option value="idea" {{ "selected" if tipo == "idea" else "" }}>Ideas</option>
-      <option value="nota" {{ "selected" if tipo == "nota" else "" }}>Notas</option>
-    </select>
-    <select name="periodo">
-      <option value="" {{ "selected" if not periodo else "" }}>Todo el tiempo</option>
-      <option value="hoy" {{ "selected" if periodo == "hoy" else "" }}>Hoy</option>
-      <option value="mes" {{ "selected" if periodo == "mes" else "" }}>Este mes</option>
-    </select>
-    <button type="submit">Filtrar</button>
-  </form>
+  <div class="periodo">
+    <a href="{{ url_for('index') }}" class="{{ 'activo' if not periodo else '' }}">Todo</a>
+    <a href="{{ url_for('index', periodo='hoy') }}" class="{{ 'activo' if periodo == 'hoy' else '' }}">Hoy</a>
+    <a href="{{ url_for('index', periodo='mes') }}" class="{{ 'activo' if periodo == 'mes' else '' }}">Este mes</a>
+  </div>
 
-  <div class="feed">
-    {% for entry in entries %}
-    <div class="tarjeta">
-      <div class="contenido">
-        <div class="registro">{{ format_entry_summary(entry) }}</div>
-        <div class="meta">#{{ entry.id if entry.id is not none else "?" }} · {{ entry.created_at or "Fecha desconocida" }}</div>
+  <div class="tabs">
+    {% for seccion in secciones %}
+    <input
+      type="radio"
+      name="tab"
+      id="tab-{{ seccion.tipo }}"
+      class="tab-radio"
+      {{ "checked" if loop.first else "" }}
+    >
+    <label for="tab-{{ seccion.tipo }}" class="tab-label">
+      {{ seccion.etiqueta }} ({{ seccion.entries | length }})
+    </label>
+    {% endfor %}
+
+    {% for seccion in secciones %}
+    <div class="tab-panel panel-{{ seccion.tipo }}">
+      {% if seccion.entries %}
+      <div class="feed">
+        {% for entry in seccion.entries %}
+        <div class="tarjeta">
+          <div class="contenido">
+            <div class="registro">{{ format_entry_summary(entry) }}</div>
+            <div class="meta">#{{ entry.id if entry.id is not none else "?" }} · {{ entry.created_at or "Fecha desconocida" }}</div>
+          </div>
+          <div class="acciones">
+            {% if entry.id is not none %}
+              {% if entry.type == "tarea" and not entry.done %}
+              <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
+                <button type="submit">Hecha</button>
+              </form>
+              {% endif %}
+              <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
       </div>
-      <div class="acciones">
-        {% if entry.id is not none %}
-          {% if entry.type == "tarea" and not entry.done %}
-          <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
-            <button type="submit">Hecha</button>
-          </form>
-          {% endif %}
-          <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
-        {% endif %}
-      </div>
+      {% else %}
+      <p class="vacio">Nada todavía.</p>
+      {% endif %}
     </div>
-    {% else %}
-    <p class="vacio">No hay registros para este filtro.</p>
     {% endfor %}
   </div>
 </body>

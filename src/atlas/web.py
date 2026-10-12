@@ -35,18 +35,27 @@ from flask import (
 )  # noqa: E402
 
 from atlas.main import (  # noqa: E402
+    HELP_TEXT,
     build_corrected_text,
     calculate_balance,
     calculate_monthly_balance,
+    calculate_total_expenses,
+    create_backup,
     delete_entry,
     detect_entry_type,
     detect_probable_typo,
     filter_by_period,
     find_entry,
+    forget_fact,
     format_entry_summary,
     format_money,
     load_entries,
+    load_memory,
     mark_task_done,
+    parse_id_command,
+    parse_list_command,
+    parse_remember_command,
+    remember_fact,
     save_entry,
 )
 
@@ -57,22 +66,30 @@ app = Flask(__name__)
 app.secret_key = "atlas-local-dev"
 
 
-def _render_index(pendiente=None):
-    """Arma el panel principal. pendiente, si se pasa, es un dict
-    {"original": ..., "corregido": ...} que hace aparecer la burbuja de
-    confirmación de typo en vez de guardar directo.
+# Orden y etiqueta de cada sección. Mismo orden que HELP_TEXT.
+_SECCIONES = [
+    ("gasto", "Gastos"),
+    ("ingreso", "Ingresos"),
+    ("tarea", "Tareas"),
+    ("idea", "Ideas"),
+    ("nota", "Notas"),
+]
+
+_MAX_POR_SECCION = 10
+
+
+def _render_index(pendiente=None, respuesta=None):
+    """Arma el panel principal, dividido en una sección por tipo.
+
+    pendiente: dict {"original": ..., "corregido": ...} que hace aparecer
+    la burbuja de confirmación de typo en vez de guardar directo.
+    respuesta: texto de respuesta a un comando (ayuda, listar, balance,
+    etc.), para mostrar como una burbuja de "dijo Atlas".
     """
 
-    tipo = request.args.get("tipo") or None
     periodo = request.args.get("periodo") or None
 
-    entries = load_entries()
-
-    if tipo:
-        entries = [entry for entry in entries if entry.get("type") == tipo]
-
-    entries = filter_by_period(entries, periodo)
-    entries = list(reversed(entries[-20:]))
+    entries = filter_by_period(load_entries(), periodo)
 
     # Registros guardados antes de que existieran los ids no tienen "id".
     # Garantizamos que la clave siempre exista (en None si no estaba) para
@@ -80,12 +97,24 @@ def _render_index(pendiente=None):
     # confiable, en vez de que Jinja2 trate el atributo como indefinido.
     entries = [dict(entry, id=entry.get("id")) for entry in entries]
 
+    secciones = []
+
+    for tipo, etiqueta in _SECCIONES:
+        de_este_tipo = [entry for entry in entries if entry.get("type") == tipo]
+        secciones.append(
+            {
+                "tipo": tipo,
+                "etiqueta": etiqueta,
+                "entries": list(reversed(de_este_tipo[-_MAX_POR_SECCION:])),
+            }
+        )
+
     return render_template(
         "index.html",
-        entries=entries,
-        tipo=tipo,
+        secciones=secciones,
         periodo=periodo,
         pendiente=pendiente,
+        respuesta=respuesta,
         balance_hoy=calculate_balance(load_entries(), date.today()),
         balance_mes=calculate_monthly_balance(load_entries(), date.today()),
         format_money=format_money,
@@ -111,9 +140,127 @@ def _guardar_y_avisar(entry_type: str, texto: str) -> None:
         flash(str(error), "error")
 
 
+def _formatear_balance(resultado: dict) -> str:
+    return (
+        f"Ingresos: {format_money(resultado['income'])} · "
+        f"Gastos: {format_money(resultado['expenses'])} · "
+        f"Balance: {format_money(resultado['balance'])}"
+    )
+
+
+def _handle_command(texto: str) -> dict | None:
+    """Si texto es un comando (como en la terminal: ayuda, listar, balance,
+    borrar, hecha, recordar/que recordás/olvidar, backup), lo ejecuta y
+    devuelve {"respuesta": texto} para mostrar como burbuja, o
+    {"redirect_borrar": id} para mandar a la página de confirmación.
+
+    None si no es ninguno de estos comandos (el composer lo trata como una
+    captura normal: gasto/ingreso/tarea/idea/nota).
+    """
+
+    comando = texto.strip().lower()
+
+    if comando == "ayuda":
+        return {"respuesta": HELP_TEXT}
+
+    if comando == "total gastos":
+        total = calculate_total_expenses(load_entries())
+        return {"respuesta": f"Gastaste {format_money(total)} en total."}
+
+    if comando == "balance dia":
+        return {
+            "respuesta": _formatear_balance(
+                calculate_balance(load_entries(), date.today())
+            )
+        }
+
+    if comando == "balance mes":
+        return {
+            "respuesta": _formatear_balance(
+                calculate_monthly_balance(load_entries(), date.today())
+            )
+        }
+
+    if comando == "backup":
+        backup_path = create_backup()
+
+        if backup_path is None:
+            return {"respuesta": "Todavía no hay nada guardado para respaldar."}
+
+        return {"respuesta": f"Copia de seguridad guardada en {backup_path.name}."}
+
+    if comando in {"recordar", "que recordas"}:
+        memoria = load_memory()
+
+        if not memoria:
+            return {"respuesta": "Todavía no recuerdo nada."}
+
+        lineas = [f"{clave}: {valor}" for clave, valor in memoria.items()]
+        return {"respuesta": "Esto es lo que recuerdo:\n" + "\n".join(lineas)}
+
+    if comando.startswith("recordar "):
+        hecho = parse_remember_command(texto)
+
+        if hecho is None:
+            return {"respuesta": "Usá este formato: recordar <algo>: <valor>"}
+
+        clave, valor = hecho
+        remember_fact(clave, valor)
+        return {"respuesta": f"Voy a recordar que {clave} es {valor}."}
+
+    if comando.startswith("olvidar "):
+        clave = comando[len("olvidar ") :].strip()
+
+        if clave and forget_fact(clave):
+            return {"respuesta": f"Me olvidé de '{clave}'."}
+
+        return {"respuesta": f"No tenía nada guardado como '{clave}'."}
+
+    delete_id = parse_id_command(comando, "borrar")
+
+    if delete_id is not None:
+        return {"redirect_borrar": delete_id}
+
+    done_id = parse_id_command(comando, "hecha")
+
+    if done_id is not None:
+        resultado = mark_task_done(done_id)
+
+        if resultado == "ok":
+            return {"respuesta": f"Marqué la tarea #{done_id} como hecha."}
+
+        if resultado == "no_es_tarea":
+            return {"respuesta": f"El registro #{done_id} no es una tarea."}
+
+        return {"respuesta": f"No encontré ninguna tarea con id #{done_id}."}
+
+    lista = parse_list_command(comando)
+
+    if lista is not None:
+        entries = load_entries()
+
+        if lista["entry_type"]:
+            entries = [e for e in entries if e.get("type") == lista["entry_type"]]
+
+        entries = filter_by_period(entries, lista["period"])
+        entries = entries[-10:]
+
+        if not entries:
+            return {"respuesta": "No encontré registros para ese filtro."}
+
+        lineas = [
+            f"#{entry.get('id', '?')} {format_entry_summary(entry)}"
+            for entry in reversed(entries)
+        ]
+        return {"respuesta": "\n".join(lineas)}
+
+    return None
+
+
 @app.route("/agregar", methods=["POST"])
 def agregar():
-    """Guarda un registro nuevo, igual que escribir algo en la terminal.
+    """Procesa lo que se escribió en el composer: un comando (ayuda,
+    listar, balance, borrar, etc.) o una captura nueva.
 
     Si el texto parece un error de tipeo de un prefijo conocido (sin ":",
     en plural, o con un typo real), no guarda nada todavía: muestra la
@@ -125,6 +272,18 @@ def agregar():
 
     if not texto:
         return redirect(url_for("index"))
+
+    resultado_comando = _handle_command(texto)
+
+    if resultado_comando is not None:
+        if "redirect_borrar" in resultado_comando:
+            return redirect(
+                url_for(
+                    "confirmar_borrado", entry_id=resultado_comando["redirect_borrar"]
+                )
+            )
+
+        return _render_index(respuesta=resultado_comando["respuesta"])
 
     entry_type = detect_entry_type(texto)
 
