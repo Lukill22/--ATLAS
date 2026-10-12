@@ -149,7 +149,9 @@ desde el celular (sin contraseña todavía, decisión explícita).
 El composer web ahora entiende los mismos comandos que la terminal (`ayuda`,
 `listar`, `balance`, `backup`, `recordar`/`que recordás`/`olvidar`, etc.), no
 solo capturas. Las secciones por tipo pasan de estar apiladas a ser pestañas
-(CSS puro, sin JavaScript). 138 pruebas automatizadas en total.
+(CSS puro, sin JavaScript). La respuesta de `ayuda` queda colapsada por
+defecto (`<details>`); el resto de las respuestas quedan abiertas. 140
+pruebas automatizadas en total.
 
 ## Funciones actuales
 

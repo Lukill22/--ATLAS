@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.5
+
+- La respuesta de `ayuda` en la web ya no aparece desplegada de una: queda colapsada (`<details>`/`<summary>`, sin JavaScript) con un "Ver comandos disponibles" para abrirla cuando quieras. El resto de las respuestas (balance, listar, etc.) siguen abiertas, como antes.
+- 2 pruebas nuevas (140 en total).
+
 ## 0.6.4
 
 - Las secciones por tipo (Gastos, Ingresos, Tareas, Ideas, Notas) pasan de estar todas apiladas a ser **pestañas**: se ve una a la vez, con la cantidad de registros en la etiqueta. Hecho con CSS puro (radios ocultos + `:checked`), sin JavaScript.

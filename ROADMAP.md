@@ -205,6 +205,7 @@ Versión mínima:
 - [x] `HELP_TEXT` y `calculate_total_expenses()` extraídos en `main.py` para que la terminal y la web nunca muestren cosas distintas.
 - [x] Las secciones (Gastos, Ingresos, Tareas, Ideas, Notas) pasan de estar apiladas a ser pestañas (una visible a la vez, con la cantidad en la etiqueta), con CSS puro, sin JavaScript.
 - [x] Pruebas automatizadas de los comandos nuevos y de que cada registro aparece en la pestaña correcta.
+- [x] La respuesta de `ayuda` (larga) queda colapsada por defecto (`<details>`, sin JavaScript); el resto de las respuestas (balance, listar) siguen abiertas.
 
 ---
 

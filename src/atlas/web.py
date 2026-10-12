@@ -78,13 +78,16 @@ _SECCIONES = [
 _MAX_POR_SECCION = 10
 
 
-def _render_index(pendiente=None, respuesta=None):
+def _render_index(pendiente=None, respuesta=None, respuesta_es_ayuda=False):
     """Arma el panel principal, dividido en una sección por tipo.
 
     pendiente: dict {"original": ..., "corregido": ...} que hace aparecer
     la burbuja de confirmación de typo en vez de guardar directo.
     respuesta: texto de respuesta a un comando (ayuda, listar, balance,
     etc.), para mostrar como una burbuja de "dijo Atlas".
+    respuesta_es_ayuda: la lista de comandos es larga y no aporta nada
+    verla siempre desplegada, así que se muestra colapsada por defecto
+    (el resto de las respuestas, como un balance, se muestran abiertas).
     """
 
     periodo = request.args.get("periodo") or None
@@ -115,6 +118,7 @@ def _render_index(pendiente=None, respuesta=None):
         periodo=periodo,
         pendiente=pendiente,
         respuesta=respuesta,
+        respuesta_es_ayuda=respuesta_es_ayuda,
         balance_hoy=calculate_balance(load_entries(), date.today()),
         balance_mes=calculate_monthly_balance(load_entries(), date.today()),
         format_money=format_money,
@@ -161,7 +165,7 @@ def _handle_command(texto: str) -> dict | None:
     comando = texto.strip().lower()
 
     if comando == "ayuda":
-        return {"respuesta": HELP_TEXT}
+        return {"respuesta": HELP_TEXT, "es_ayuda": True}
 
     if comando == "total gastos":
         total = calculate_total_expenses(load_entries())
@@ -283,7 +287,10 @@ def agregar():
                 )
             )
 
-        return _render_index(respuesta=resultado_comando["respuesta"])
+        return _render_index(
+            respuesta=resultado_comando["respuesta"],
+            respuesta_es_ayuda=resultado_comando.get("es_ayuda", False),
+        )
 
     entry_type = detect_entry_type(texto)
 

@@ -61,7 +61,15 @@
       margin-bottom: 0.9rem;
       font-size: 0.95rem;
     }
-    .respuesta { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+    .respuesta summary { cursor: pointer; font-weight: 500; font-size: 0.9rem; }
+    .respuesta summary::marker { color: #2563eb; }
+    .respuesta-contenido {
+      white-space: pre-wrap;
+      font-family: ui-monospace, monospace;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+    .respuesta[open] summary { margin-bottom: 0; }
     .pregunta .acciones-pregunta { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
     .pregunta button {
       border: none;
@@ -187,7 +195,10 @@
   {% endif %}
 
   {% if respuesta %}
-  <div class="respuesta">{{ respuesta }}</div>
+  <details class="respuesta" {{ "" if respuesta_es_ayuda else "open" }}>
+    <summary>{{ "Ver comandos disponibles" if respuesta_es_ayuda else "Atlas" }}</summary>
+    <div class="respuesta-contenido">{{ respuesta }}</div>
+  </details>
   {% endif %}
 
   <div class="resumen">

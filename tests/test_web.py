@@ -200,6 +200,17 @@ class TestComandosEnElComposer:
             assert load_entries() == []
             assert b"Comandos disponibles" in respuesta.data
 
+    def test_ayuda_aparece_colapsada_por_defecto(self):
+        # La lista de comandos es larga; se muestra colapsada (sin "open")
+        # para no abrirse siempre expandida, a diferencia de respuestas
+        # cortas como un balance.
+        with archivo_temporal():
+            html = (
+                cliente().post("/agregar", data={"texto": "ayuda"}).data.decode("utf-8")
+            )
+
+            assert '<details class="respuesta" >' in html
+
     def test_total_gastos(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "gasto: 5000 pan"})
@@ -208,6 +219,16 @@ class TestComandosEnElComposer:
 
             assert "$5.000".encode("utf-8") in respuesta.data
             assert len(load_entries()) == 1  # no agregó un segundo registro
+
+    def test_balance_dia_aparece_abierto(self):
+        with archivo_temporal():
+            html = (
+                cliente()
+                .post("/agregar", data={"texto": "balance dia"})
+                .data.decode("utf-8")
+            )
+
+            assert '<details class="respuesta" open>' in html
 
     def test_balance_dia(self):
         with archivo_temporal():
