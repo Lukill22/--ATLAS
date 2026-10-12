@@ -70,6 +70,51 @@ class TestAgregar:
 
             assert load_entries() == []
 
+    def test_probable_typo_no_guarda_nada_todavia_y_pregunta(self):
+        with archivo_temporal():
+            respuesta = cliente().post("/agregar", data={"texto": "gasto 5000 pan"})
+
+            assert load_entries() == []
+            assert b"gasto: 5000 pan" in respuesta.data
+
+    def test_texto_sin_relacion_se_guarda_directo_como_nota(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "se me ocurrió algo"})
+
+            assert load_entries()[0]["type"] == "nota"
+
+
+class TestConfirmarAgregar:
+    def test_responder_si_guarda_bien_tipado(self):
+        with archivo_temporal():
+            cliente().post(
+                "/agregar/confirmar",
+                data={
+                    "texto_original": "gasto 5000 pan",
+                    "texto_corregido": "gasto: 5000 pan",
+                    "respuesta": "si",
+                },
+            )
+
+            entradas = load_entries()
+            assert entradas[0]["type"] == "gasto"
+            assert entradas[0]["amount"] == 5000
+
+    def test_responder_no_guarda_el_original_como_nota(self):
+        with archivo_temporal():
+            cliente().post(
+                "/agregar/confirmar",
+                data={
+                    "texto_original": "gasto 5000 pan",
+                    "texto_corregido": "gasto: 5000 pan",
+                    "respuesta": "no",
+                },
+            )
+
+            entradas = load_entries()
+            assert entradas[0]["type"] == "nota"
+            assert entradas[0]["text"] == "gasto 5000 pan"
+
 
 class TestBorrar:
     def test_la_pagina_de_confirmacion_no_borra_nada(self):

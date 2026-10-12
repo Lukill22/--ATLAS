@@ -2,28 +2,128 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Atlas</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
-    h1 { margin-bottom: 0.1rem; }
-    .subtitulo { color: #666; margin-top: 0; }
-    .flash { padding: 0.6rem 0.8rem; border-radius: 6px; margin: 1rem 0; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 640px;
+      margin: 1.5rem auto;
+      padding: 0 1rem 2rem;
+      color: #1a1a1a;
+      background: #f4f5f7;
+    }
+    h1 { margin: 0; font-size: 1.4rem; }
+    .subtitulo { color: #888; margin: 0.1rem 0 1rem; font-size: 0.85rem; }
+
+    .flash { padding: 0.6rem 0.8rem; border-radius: 10px; margin-bottom: 0.8rem; font-size: 0.9rem; }
     .flash.ok { background: #e6f4ea; color: #1e4620; }
     .flash.error { background: #fce8e6; color: #7a1a1a; }
-    form.capturar { display: flex; gap: 0.5rem; margin: 1.2rem 0; }
-    form.capturar input[type=text] { flex: 1; padding: 0.5rem; font-size: 1rem; }
-    form.capturar button { padding: 0.5rem 1rem; }
-    .balance { display: flex; gap: 1rem; margin: 1rem 0 1.5rem; }
-    .balance > div { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; }
-    .balance .negativo { color: #b00020; font-weight: bold; }
-    .filtros { margin-bottom: 1rem; }
-    .filtros select { margin-right: 0.5rem; padding: 0.3rem; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; vertical-align: top; }
-    th { color: #666; font-weight: normal; font-size: 0.85rem; }
-    .acciones { white-space: nowrap; }
-    .acciones form { display: inline; margin-right: 0.4rem; }
-    .acciones button { padding: 0.2rem 0.5rem; }
+
+    /* Composer tipo chat */
+    form.capturar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.9rem;
+      background: white;
+      border-radius: 999px;
+      padding: 0.3rem 0.3rem 0.3rem 1rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    form.capturar input[type=text] {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      background: transparent;
+    }
+    form.capturar button.enviar {
+      border: none;
+      background: #2563eb;
+      color: white;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 50%;
+      font-size: 1.1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    form.capturar button.enviar:active { background: #1d4ed8; }
+
+    /* Burbuja de confirmación de typo */
+    .pregunta {
+      background: white;
+      border-radius: 14px;
+      border-left: 4px solid #2563eb;
+      padding: 0.7rem 1rem;
+      margin-bottom: 0.9rem;
+      font-size: 0.95rem;
+    }
+    .pregunta .acciones-pregunta { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
+    .pregunta button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.35rem 0.9rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .pregunta button.si { background: #2563eb; color: white; }
+    .pregunta button.no { background: #e5e7eb; color: #1a1a1a; }
+
+    /* Resumen compacto */
+    .resumen {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: #444;
+      margin-bottom: 0.9rem;
+      flex-wrap: wrap;
+    }
+    .resumen .negativo { color: #b00020; font-weight: bold; }
+
+    .filtros { margin-bottom: 1rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .filtros select, .filtros button {
+      padding: 0.35rem 0.6rem;
+      font-size: 0.85rem;
+      border: 1px solid #ddd;
+      border-radius: 999px;
+      background: white;
+    }
+
+    /* Feed de registros, como tarjetas */
+    .feed { display: flex; flex-direction: column; gap: 0.5rem; }
+    .tarjeta {
+      background: white;
+      border-radius: 14px;
+      padding: 0.6rem 0.9rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+    .tarjeta .contenido { min-width: 0; }
+    .tarjeta .registro { word-break: break-word; }
+    .tarjeta .meta { color: #999; font-size: 0.75rem; margin-top: 0.15rem; }
+    .tarjeta .acciones { display: flex; gap: 0.3rem; flex-shrink: 0; white-space: nowrap; }
+    .tarjeta .acciones form { display: inline; }
+    .tarjeta .acciones button, .tarjeta .acciones a {
+      border: 1px solid #ddd;
+      background: #fafafa;
+      border-radius: 999px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: none;
+      color: #333;
+    }
+    .vacio { color: #888; text-align: center; padding: 1.5rem 0; font-size: 0.9rem; }
+
+    @media (max-width: 420px) {
+      body { margin: 0.75rem auto; padding: 0 0.6rem 1.5rem; }
+    }
   </style>
 </head>
 <body>
@@ -37,23 +137,27 @@
   {% endwith %}
 
   <form class="capturar" method="post" action="{{ url_for('agregar') }}">
-    <input type="text" name="texto" placeholder="gasto: 15000 nafta / tarea: ... / lo que sea" autofocus>
-    <button type="submit">Guardar</button>
+    <input type="text" name="texto" placeholder="gasto: 15000 nafta, tarea: ..., o lo que sea" autofocus>
+    <button class="enviar" type="submit" aria-label="Enviar">➤</button>
   </form>
 
-  <div class="balance">
-    <div>
-      <strong>Hoy</strong><br>
-      Ingresos: {{ format_money(balance_hoy.income) }}<br>
-      Gastos: {{ format_money(balance_hoy.expenses) }}<br>
-      Balance: <span class="{{ 'negativo' if balance_hoy.balance < 0 else '' }}">{{ format_money(balance_hoy.balance) }}</span>
-    </div>
-    <div>
-      <strong>Este mes</strong><br>
-      Ingresos: {{ format_money(balance_mes.income) }}<br>
-      Gastos: {{ format_money(balance_mes.expenses) }}<br>
-      Balance: <span class="{{ 'negativo' if balance_mes.balance < 0 else '' }}">{{ format_money(balance_mes.balance) }}</span>
-    </div>
+  {% if pendiente %}
+  <div class="pregunta">
+    ¿Quisiste escribir <strong>"{{ pendiente.corregido }}"</strong>?
+    <form method="post" action="{{ url_for('confirmar_agregar') }}">
+      <input type="hidden" name="texto_original" value="{{ pendiente.original }}">
+      <input type="hidden" name="texto_corregido" value="{{ pendiente.corregido }}">
+      <div class="acciones-pregunta">
+        <button class="si" type="submit" name="respuesta" value="si">Sí</button>
+        <button class="no" type="submit" name="respuesta" value="no">No, es una nota</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="resumen">
+    <span>Hoy: <span class="{{ 'negativo' if balance_hoy.balance < 0 else '' }}">{{ format_money(balance_hoy.balance) }}</span></span>
+    <span>Este mes: <span class="{{ 'negativo' if balance_mes.balance < 0 else '' }}">{{ format_money(balance_mes.balance) }}</span></span>
   </div>
 
   <form class="filtros" method="get" action="{{ url_for('index') }}">
@@ -73,29 +177,25 @@
     <button type="submit">Filtrar</button>
   </form>
 
-  <table>
-    <thead>
-      <tr><th>#</th><th>Registro</th><th>Fecha</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for entry in entries %}
-      <tr>
-        <td>{{ entry.id if entry.id is not none else "?" }}</td>
-        <td>{{ format_entry_summary(entry) }}</td>
-        <td>{{ entry.created_at or "Fecha desconocida" }}</td>
-        <td class="acciones">
-          {% if entry.type == "tarea" and not entry.done %}
-          <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
-            <button type="submit">Hecha</button>
-          </form>
-          {% endif %}
-          <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="4">No hay registros para este filtro.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="feed">
+    {% for entry in entries %}
+    <div class="tarjeta">
+      <div class="contenido">
+        <div class="registro">{{ format_entry_summary(entry) }}</div>
+        <div class="meta">#{{ entry.id if entry.id is not none else "?" }} · {{ entry.created_at or "Fecha desconocida" }}</div>
+      </div>
+      <div class="acciones">
+        {% if entry.type == "tarea" and not entry.done %}
+        <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
+          <button type="submit">Hecha</button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
+      </div>
+    </div>
+    {% else %}
+    <p class="vacio">No hay registros para este filtro.</p>
+    {% endfor %}
+  </div>
 </body>
 </html>

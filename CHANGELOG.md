@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1
+
+- La interfaz web detecta errores de tipeo (igual que la terminal: sin ":", en plural, o con un typo real) y pregunta antes de guardar, con una burbuja tipo chat en vez de guardar directo como nota. `/agregar/confirmar` resuelve la respuesta.
+- Rediseño visual: el composer pasa a ser un cajón de texto redondeado con botón de enviar (sin la palabra "Guardar"), y el listado pasa de tabla a tarjetas. El balance y los filtros bajan de prioridad visual.
+- Se agregó `<meta name="viewport">` a las dos plantillas: sin esto, el celular mostraba la página en miniatura (bug real, detectado probando desde el celular).
+- CSS responsive (el formulario y el resumen de balance se apilan en pantallas chicas).
+- El servidor ahora escucha en la red local (`0.0.0.0`), no solo en `127.0.0.1`, para poder abrirlo desde el celular en la misma wifi — decisión explícita, no hay contraseña todavía. Al arrancar, imprime la URL para el celular y una advertencia.
+- Se agregaron 4 pruebas (127 en total).
+
 ## 0.6.0
 
 - Nueva interfaz web local opcional (`src/atlas/web.py`), con Flask. Usa las mismas funciones que la terminal (`save_entry`, `load_entries`, `calculate_balance`, etc.); no duplica lógica, solo cambia cómo se muestra.

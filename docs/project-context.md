@@ -129,9 +129,20 @@ tiempo.
 
 `src/atlas/web.py` (Flask) reutiliza las mismas funciones que la terminal;
 cubre capturar, listar con filtros, balance y borrar/marcar tareas (con
-confirmación antes de borrar). Corre solo en `127.0.0.1`. A diferencia del
-Sprint 4, esto no vino de un problema de uso real sino de una decisión
-explícita de adelantar algo que estaba en "Futuro lejano". 123 pruebas
+confirmación antes de borrar). A diferencia del Sprint 4, esto no vino de un
+problema de uso real sino de una decisión explícita de adelantar algo que
+estaba en "Futuro lejano".
+
+### Sprint 5.1: ajustes de uso real en la interfaz web — terminado
+
+Esta vuelta sí vino de usarla de verdad: faltaba la detección de errores de
+tipeo (todo se guardaba como nota sin preguntar), la interfaz se sentía
+básica, y en el celular se veía en miniatura y ni siquiera se podía abrir.
+Se agregó la misma pregunta "¿quisiste escribir...?" que la terminal
+(resuelta en `/agregar/confirmar`), un rediseño tipo chat (composer
+redondeado, tarjetas en vez de tabla), el `viewport` que faltaba, CSS
+responsive, y el servidor ahora escucha en la red local para poder abrirse
+desde el celular (sin contraseña todavía, decisión explícita). 127 pruebas
 automatizadas en total.
 
 ## Funciones actuales
@@ -180,7 +191,7 @@ salir
 
 - Integración con modelos de IA.
 - Automatizaciones con permisos explícitos.
-- Voz y acceso móvil (ya existe la interfaz web; falta decidir si se expone a la red local y cómo).
+- Voz. El acceso móvil ya existe (interfaz web expuesta a la red local); falta contraseña/login si algún día se expone más allá de esa red.
 - Agentes especializados e integraciones externas.
 
 ## Decisiones abiertas

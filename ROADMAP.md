@@ -171,6 +171,26 @@ Fuera de alcance (a propósito): la detección de errores de tipeo con
 confirmación, `recordar`/`que recordás`/`olvidar`, `backup`, acceso desde el
 celular en la misma red (necesitaría pensar autenticación primero).
 
+## Sprint 5.1 — Ajustes de uso real en la interfaz web (terminado)
+
+Problema que resuelve: a diferencia del Sprint 5 (que fue una decisión
+adelantada, no un problema validado), esta vuelta sí vino de usarla de
+verdad: todo se guardaba como nota sin preguntar nada (la detección de
+typos no existía en la web), la interfaz se sentía básica, y en el celular
+se veía en miniatura — y además no se podía ni abrir desde el celular.
+
+Versión mínima:
+
+- [x] Detección de errores de tipeo con la misma pregunta "¿quisiste escribir...?" que la terminal, resuelta en `/agregar/confirmar` (sin guardar nada hasta confirmar).
+- [x] Rediseño del composer como un chat (cajón redondeado + botón de enviar, sin la palabra "Guardar") y el listado como tarjetas en vez de tabla.
+- [x] `<meta name="viewport">` en las plantillas (faltaba; el celular mostraba todo en miniatura).
+- [x] CSS responsive para pantallas chicas.
+- [x] El servidor escucha en la red local (`0.0.0.0`), no solo en `127.0.0.1`, e imprime la URL para el celular al arrancar — decisión explícita, sin contraseña todavía.
+- [x] Pruebas automatizadas del nuevo flujo de confirmación.
+
+Fuera de alcance (a propósito): contraseña o login (necesario si esto se
+expone más allá de la red de casa), acceso desde fuera de la red local.
+
 ---
 
 ## Futuro de Atlas

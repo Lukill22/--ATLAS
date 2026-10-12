@@ -16,13 +16,23 @@ Escribí `ayuda` dentro de Atlas para ver los comandos disponibles.
 ### Interfaz web local (opcional)
 
 Usa la misma lógica que la terminal, solo cambia cómo se muestra. Necesita
-Flask (`pip install -r requirements.txt`) y corre solo en tu propia
-computadora (`127.0.0.1`), nunca expuesta a la red.
+Flask (`pip install -r requirements.txt`).
 
 ```bash
 pip install -r requirements.txt
 python src/atlas/web.py
 ```
+
+Al arrancar, muestra dos direcciones: una para esta computadora
+(`127.0.0.1`) y otra para abrir desde el celular en la misma wifi. **No hay
+contraseña ni login**: cualquier otro dispositivo en esa misma red podría
+ver y borrar los datos mientras el servidor esté corriendo — es una
+decisión aceptada a propósito para una red hogareña, no un descuido. Si
+alguna vez se expone más allá de la red de casa, hay que resolver
+autenticación antes.
+
+Si desde el celular no carga, puede ser el Firewall de Windows bloqueando
+la conexión entrante la primera vez (suele preguntar si permitir la app).
 
 Después abrí `http://127.0.0.1:5000/` en el navegador.
 
