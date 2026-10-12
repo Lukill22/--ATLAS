@@ -185,12 +185,14 @@
         <div class="meta">#{{ entry.id if entry.id is not none else "?" }} · {{ entry.created_at or "Fecha desconocida" }}</div>
       </div>
       <div class="acciones">
-        {% if entry.type == "tarea" and not entry.done %}
-        <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
-          <button type="submit">Hecha</button>
-        </form>
+        {% if entry.id is not none %}
+          {% if entry.type == "tarea" and not entry.done %}
+          <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
+            <button type="submit">Hecha</button>
+          </form>
+          {% endif %}
+          <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
         {% endif %}
-        <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
       </div>
     </div>
     {% else %}

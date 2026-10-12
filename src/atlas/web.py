@@ -74,6 +74,12 @@ def _render_index(pendiente=None):
     entries = filter_by_period(entries, periodo)
     entries = list(reversed(entries[-20:]))
 
+    # Registros guardados antes de que existieran los ids no tienen "id".
+    # Garantizamos que la clave siempre exista (en None si no estaba) para
+    # que la plantilla pueda chequear "entry.id is not none" de forma
+    # confiable, en vez de que Jinja2 trate el atributo como indefinido.
+    entries = [dict(entry, id=entry.get("id")) for entry in entries]
+
     return render_template(
         "index.html",
         entries=entries,

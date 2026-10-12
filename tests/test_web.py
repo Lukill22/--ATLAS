@@ -43,6 +43,24 @@ class TestIndex:
             assert b"comprar arroz" in respuesta.data
             assert b"mejorar atlas" not in respuesta.data
 
+    def test_no_rompe_con_una_tarea_vieja_sin_id(self):
+        # Bug real: entradas guardadas antes de que existiera el id (de
+        # cuando se guardaba solo con append, sin pasar por save_entry
+        # actual) rompían la página entera con un 500 al intentar armar el
+        # botón "Hecha" con un id inexistente.
+        with archivo_temporal() as ruta:
+            ruta.write_text(
+                '{"created_at": "2026-10-11T17:57:11", "type": "tarea", '
+                '"text": "tarea: tomar mates"}\n',
+                encoding="utf-8",
+            )
+
+            respuesta = cliente().get("/")
+
+            assert respuesta.status_code == 200
+            assert b"tomar mates" in respuesta.data
+            assert b"Hecha" not in respuesta.data
+
 
 class TestAgregar:
     def test_guarda_un_gasto_valido(self):

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2
+
+- Se corrigió un bug real que rompía la interfaz web por completo (500 en todas las páginas): los registros guardados antes de que existiera el campo `id` (de versiones viejas de Atlas) hacían explotar la plantilla al intentar armar los botones "Hecha"/"Borrar" con un id inexistente. Confirmado y verificado directamente contra una copia del archivo de datos real.
+- Esos registros viejos ahora se muestran igual que en la terminal, sin botones de acción (no se pueden borrar/marcar por id porque nunca tuvieron uno).
+- Se agregó una prueba que reproduce exactamente este caso (una tarea sin `id`).
+
 ## 0.6.1
 
 - La interfaz web detecta errores de tipeo (igual que la terminal: sin ":", en plural, o con un typo real) y pregunta antes de guardar, con una burbuja tipo chat en vez de guardar directo como nota. `/agregar/confirmar` resuelve la respuesta.

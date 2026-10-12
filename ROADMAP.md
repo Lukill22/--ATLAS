@@ -187,6 +187,7 @@ Versión mínima:
 - [x] CSS responsive para pantallas chicas.
 - [x] El servidor escucha en la red local (`0.0.0.0`), no solo en `127.0.0.1`, e imprime la URL para el celular al arrancar — decisión explícita, sin contraseña todavía.
 - [x] Pruebas automatizadas del nuevo flujo de confirmación.
+- [x] Bug real encontrado al probarla con datos reales: registros guardados antes de que existiera el `id` rompían toda la página (500) al armar los botones de acción. Corregido; esos registros viejos ahora se muestran sin botones, igual que en la terminal.
 
 Fuera de alcance (a propósito): contraseña o login (necesario si esto se
 expone más allá de la red de casa), acceso desde fuera de la red local.
