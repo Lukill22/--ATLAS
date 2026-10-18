@@ -287,6 +287,20 @@ Fuera de alcance (a propósito): elegir qué incluye el mensaje (hoy es
 siempre "balance de hoy", igual que `balance dia`), otros avisos repetitivos
 de propósito general, horarios distintos por día de la semana.
 
+## Sprint 9 — Total de ingresos y balance de toda la vida (terminado)
+
+Problema que resuelve: `total gastos` existía desde el Sprint 2, pero nunca
+se agregó su equivalente para ingresos; y `balance dia`/`balance mes` no
+tenían forma de responder "¿cómo estoy en total, desde que empecé a usar
+Atlas?" sin sumarlo a mano.
+
+Versión mínima:
+
+- [x] `total ingresos`: igual que `total gastos`, pero para ingresos.
+- [x] `balance total`: ingresos, gastos y balance sin filtrar por fecha, reusando `_sum_income_and_expenses` con un prefijo vacío.
+- [x] Disponible en los tres canales (terminal, web, bot), con la misma tolerancia a typos que el resto de los comandos fijos.
+- [x] Pruebas automatizadas.
+
 ---
 
 ## Futuro de Atlas

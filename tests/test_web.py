@@ -220,6 +220,24 @@ class TestComandosEnElComposer:
             assert "$5.000".encode("utf-8") in respuesta.data
             assert len(load_entries()) == 1  # no agregó un segundo registro
 
+    def test_total_ingresos(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "ingreso: 100000 uber"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "total ingresos"})
+
+            assert "$100.000".encode("utf-8") in respuesta.data
+            assert len(load_entries()) == 1  # no agregó un segundo registro
+
+    def test_balance_total(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "ingreso: 100000 uber"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "balance total"})
+
+            assert b"Balance" in respuesta.data
+            assert "$100.000".encode("utf-8") in respuesta.data
+
     def test_balance_dia_aparece_abierto(self):
         with archivo_temporal():
             html = (

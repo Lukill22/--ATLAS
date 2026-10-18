@@ -16,6 +16,8 @@ from atlas.main import (
     build_corrected_text,
     calculate_balance,
     calculate_monthly_balance,
+    calculate_total_balance,
+    calculate_total_income,
     create_backup,
     delete_entry,
     detect_entry_type,
@@ -409,6 +411,50 @@ class TestCalculateMonthlyBalance:
         ]
 
         assert calculate_monthly_balance(entries, self.HOY)["expenses"] == 0
+
+
+class TestCalculateTotalIncome:
+    def test_sin_registros_da_cero(self):
+        assert calculate_total_income([]) == 0
+
+    def test_suma_todos_los_ingresos_sin_importar_la_fecha(self):
+        entries = [
+            {"created_at": "2020-01-01T09:00:00", "type": "ingreso", "amount": 100000},
+            {"created_at": "2026-10-11T12:00:00", "type": "ingreso", "amount": 50000},
+            {"created_at": "2026-10-11T18:00:00", "type": "gasto", "amount": 5000},
+        ]
+
+        assert calculate_total_income(entries) == 150000
+
+    def test_ignora_ingresos_viejos_sin_monto(self):
+        entries = [
+            {"created_at": "2020-01-01T09:00:00", "type": "ingreso", "text": "x"}
+        ]
+
+        assert calculate_total_income(entries) == 0
+
+
+class TestCalculateTotalBalance:
+    def test_sin_registros_da_cero(self):
+        assert calculate_total_balance([]) == {
+            "income": 0,
+            "expenses": 0,
+            "balance": 0,
+        }
+
+    def test_suma_todo_sin_importar_la_fecha(self):
+        # A diferencia de calculate_balance/calculate_monthly_balance, acá
+        # no hay filtro de período: es el balance de toda la vida.
+        entries = [
+            {"created_at": "2020-01-01T09:00:00", "type": "ingreso", "amount": 100000},
+            {"created_at": "2026-10-11T12:00:00", "type": "gasto", "amount": 30000},
+        ]
+
+        assert calculate_total_balance(entries) == {
+            "income": 100000,
+            "expenses": 30000,
+            "balance": 70000,
+        }
 
 
 class TestGuardadoYLectura:
@@ -1059,6 +1105,46 @@ class TestHandleCommandTypeado:
         # tratarlo como un typo de ese comando fijo.
         with archivo_temporal():
             assert handle_command("balance diario: 23:00") is None
+
+    def test_total_ingresos(self):
+        with archivo_temporal():
+            save_entry("ingreso", "ingreso: 100000 uber")
+
+            resultado = handle_command("total ingresos")
+
+            assert "Ingresaste" in resultado["respuesta"]
+            assert "$100.000" in resultado["respuesta"]
+
+    def test_total_ingresos_no_se_confunde_con_total_gastos(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 pan")
+            save_entry("ingreso", "ingreso: 100000 uber")
+
+            assert "Gastaste" in handle_command("total gastos")["respuesta"]
+            assert "Ingresaste" in handle_command("total ingresos")["respuesta"]
+
+    def test_balance_total(self):
+        with archivo_temporal():
+            save_entry("ingreso", "ingreso: 100000 uber")
+            save_entry("gasto", "gasto: 30000 nafta")
+
+            resultado = handle_command("balance total")
+
+            assert resultado["respuesta"] == (
+                "Ingresos: $100.000 · Gastos: $30.000 · Balance: $70.000"
+            )
+
+    def test_balance_total_no_filtra_por_fecha(self):
+        with archivo_temporal() as ruta:
+            ruta.write_text(
+                '{"id": 1, "created_at": "2020-01-01T10:00:00", "type": '
+                '"ingreso", "amount": 100000, "text": "ingreso: 100000 uber"}\n',
+                encoding="utf-8",
+            )
+
+            resultado = handle_command("balance total")
+
+            assert "$100.000" in resultado["respuesta"]
 
     def test_dos_puntos_de_mas_en_comando_fijo(self):
         # Mismo bug real que "listar gastos:", pero en un comando fijo:

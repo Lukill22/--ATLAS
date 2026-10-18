@@ -192,6 +192,13 @@ la web pueden crear la configuración, pero no pueden avisar (misma
 limitación conocida que los recordatorios). 207 pruebas automatizadas en
 total.
 
+### Sprint 9: total de ingresos y balance de toda la vida — terminado
+
+Nuevos comandos `total ingresos` (simétrico a `total gastos`) y `balance
+total` (ingresos, gastos y balance sin filtrar por fecha, a diferencia de
+`balance dia`/`balance mes`). Reusan la lógica existente, disponibles en
+los tres canales. 218 pruebas automatizadas en total.
+
 ## Funciones actuales
 
 ```text
@@ -213,8 +220,10 @@ listar mes
 listar <tipo> hoy
 listar <tipo> mes
 total gastos
+total ingresos
 balance dia
 balance mes
+balance total
 borrar <id>
 hecha <id>
 backup

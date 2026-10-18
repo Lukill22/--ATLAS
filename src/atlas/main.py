@@ -852,6 +852,31 @@ def show_total_expenses() -> None:
     print(f"Atlas: Gastaste {format_money(total)} en total.")
 
 
+def calculate_total_income(entries: list[dict]) -> int:
+    """Suma todos los ingresos de la lista dada. Función pura, sin I/O."""
+
+    total = 0
+
+    for entry in entries:
+        if entry.get("type") != "ingreso":
+            continue
+
+        amount = entry.get("amount")
+
+        if isinstance(amount, int | float):
+            total += amount
+
+    return total
+
+
+def show_total_income() -> None:
+    """Calcula y muestra el total de ingresos registrados."""
+
+    total = calculate_total_income(load_entries())
+
+    print(f"Atlas: Ingresaste {format_money(total)} en total.")
+
+
 def _sum_income_and_expenses(entries: list[dict], period_prefix: str) -> dict:
     """Suma ingresos y gastos cuyo "created_at" empiece con el prefijo dado
     y calcula el balance. Es una función pura (no lee archivos ni imprime)
@@ -901,6 +926,14 @@ def calculate_monthly_balance(entries: list[dict], day: date) -> dict:
     return _sum_income_and_expenses(entries, day.strftime("%Y-%m"))
 
 
+def calculate_total_balance(entries: list[dict]) -> dict:
+    """Igual que calculate_balance, pero de toda la vida (sin filtrar por
+    fecha): todo string de fecha empieza con el prefijo vacío.
+    """
+
+    return _sum_income_and_expenses(entries, "")
+
+
 def show_daily_balance() -> None:
     """Muestra ingresos, gastos y balance de hoy."""
 
@@ -925,13 +958,25 @@ def show_monthly_balance() -> None:
     print()
 
 
+def show_total_balance() -> None:
+    """Muestra ingresos, gastos y balance de toda la vida."""
+
+    result = calculate_total_balance(load_entries())
+
+    print("\nAtlas: Balance total\n")
+    print(f"  Ingresos: {format_money(result['income'])}")
+    print(f"  Gastos:   {format_money(result['expenses'])}")
+    print(f"  Balance:  {format_money(result['balance'])}")
+    print()
+
+
 HELP_TEXT = """Comandos disponibles:
 
   listar / listar gastos / ingresos / tareas / ideas / notas / recordatorios
   listar hoy / mes
 
-  total gastos
-  balance dia / mes
+  total gastos / ingresos
+  balance dia / mes / total
 
   borrar <id>
   hecha <id>
@@ -987,8 +1032,10 @@ def format_balance_summary(resultado: dict) -> str:
 _FIXED_COMMANDS = [
     "ayuda",
     "total gastos",
+    "total ingresos",
     "balance dia",
     "balance mes",
+    "balance total",
     "backup",
 ]
 
@@ -1054,6 +1101,10 @@ def handle_command(texto: str) -> dict | None:
         total = calculate_total_expenses(load_entries())
         return {"respuesta": f"Gastaste {format_money(total)} en total."}
 
+    if comando == "total ingresos":
+        total = calculate_total_income(load_entries())
+        return {"respuesta": f"Ingresaste {format_money(total)} en total."}
+
     if comando == "balance dia":
         return {
             "respuesta": format_balance_summary(
@@ -1066,6 +1117,11 @@ def handle_command(texto: str) -> dict | None:
             "respuesta": format_balance_summary(
                 calculate_monthly_balance(load_entries(), date.today())
             )
+        }
+
+    if comando == "balance total":
+        return {
+            "respuesta": format_balance_summary(calculate_total_balance(load_entries()))
         }
 
     if comando == "backup":
@@ -1202,12 +1258,20 @@ def main() -> None:
             show_total_expenses()
             continue
 
+        if command == "total ingresos":
+            show_total_income()
+            continue
+
         if command == "balance dia":
             show_daily_balance()
             continue
 
         if command == "balance mes":
             show_monthly_balance()
+            continue
+
+        if command == "balance total":
+            show_total_balance()
             continue
 
         if command == "backup":

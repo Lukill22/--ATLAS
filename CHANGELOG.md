@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0
+
+- Nuevo comando `total ingresos`, simétrico a `total gastos` (antes solo existía para gastos, sin una forma directa de preguntar "¿cuánto ingresé?").
+- Nuevo comando `balance total`: ingresos, gastos y balance de toda la vida, sin filtrar por fecha — complementa a `balance dia`/`balance mes`, que solo cubrían el día y el mes actual.
+- `calculate_total_income` y `calculate_total_balance` reusan la misma lógica que ya existía (`_sum_income_and_expenses`), sin duplicar nada.
+- 11 pruebas nuevas (218 en total).
+
 ## 0.9.0
 
 - Nuevo tipo de captura: `balance diario: 23:00` — configura un aviso automático con el balance de hoy, todas las noches a esa hora. Reusa `calculate_balance`/`format_balance_summary`, los mismos que ya usa `balance dia`.
