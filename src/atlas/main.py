@@ -737,41 +737,26 @@ def show_monthly_balance() -> None:
 
 HELP_TEXT = """Comandos disponibles:
 
-  gasto: 15000 nafta
-  ingreso: 100000 uber
-  tarea: comprar arroz
-  idea: crear módulo de estudio
-  cualquier otro texto se guarda como nota
-
-  listar
-  listar gastos
-  listar ingresos
-  listar tareas
-  listar ideas
-  listar notas
-  listar hoy
-  listar mes
-  listar <tipo> hoy
-  listar <tipo> mes
+  listar / listar gastos / ingresos / tareas / ideas / notas
+  listar hoy / mes
 
   total gastos
-  balance dia
-  balance mes
+  balance dia / mes
 
   borrar <id>
   hecha <id>
-
   backup
 
   recordar <algo>: <valor>
-  que recordas
+  que recordás
   olvidar <algo>
 
   ayuda
   salir"""
-# La terminal y la interfaz web muestran este mismo texto (la web no tiene
-# "salir": cerrar la pestaña alcanza), para que la ayuda nunca se desincronice
-# entre las dos.
+# La terminal, la web y el bot de Telegram muestran este mismo texto (la
+# web y el bot no tienen "salir": cerrar la pestaña/chat alcanza), para que
+# la ayuda nunca se desincronice entre los tres. No incluye cómo capturar
+# (gasto:/tarea:/etc.): una vez que se sabe usar, esa parte sobra acá.
 
 
 def show_help() -> None:

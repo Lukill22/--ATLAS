@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.1
+
+- Se corrigió un bug real que tiraba abajo el bot de Telegram entero: un corte de conexión (`ConnectionResetError`) no estaba entre los errores que el loop sabe absorber. Ahora cualquier error de red (no solo timeout) se absorbe y reintenta, con una pequeña espera antes de reintentar.
+- El `/start` automático de Telegram (se manda solo al abrir el chat la primera vez) ya no se guarda como nota: el bot responde con un saludo.
+- `HELP_TEXT` (compartido entre terminal, web y bot) se achicó: se sacó el bloque de "cómo capturar" (una vez que se sabe usar, sobra) y se condensaron las variantes de `listar`/`balance`.
+- 2 pruebas nuevas (155 en total).
+
 ## 0.7.0
 
 - Nuevo bot de Telegram opcional (`src/atlas/telegram_bot.py`): deja capturar y consultar Atlas desde un chat, sin abrir ninguna app dedicada. Reusa exactamente la misma lógica que la terminal y la web (`save_entry`, `detect_entry_type`, `handle_command`, etc.), no duplica nada.

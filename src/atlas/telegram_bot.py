@@ -22,6 +22,7 @@ alcanza con `urllib` de la librería estándar.
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -115,6 +116,17 @@ def process_text(chat_id: int, texto: str) -> None:
     texto = texto.strip()
 
     if not texto:
+        return
+
+    if texto == "/start":
+        # Telegram manda esto solo, la primera vez que se abre el chat con
+        # el bot. No es algo que el usuario quiso anotar.
+        send_message(
+            chat_id,
+            '¡Hola! Soy Atlas. Escribime algo como "gasto: 15000 nafta" '
+            'o "tarea: comprar pan", o mandá "ayuda" para ver todos los '
+            "comandos.",
+        )
         return
 
     if chat_id in _pending_typo_by_chat:
@@ -219,10 +231,16 @@ def run() -> None:
         try:
             respuesta = _call("getUpdates", params={"offset": offset, "timeout": 30})
 
-        except (urllib.error.URLError, TimeoutError) as error:
+        except (urllib.error.URLError, OSError) as error:
+            # OSError cubre tambien los cortes de conexion a nivel red
+            # (ej. ConnectionResetError) que no son URLError/TimeoutError
+            # pero igual pueden pasar en una conexion de larga duracion
+            # como esta. Sin este catch, un corte de conexion comun
+            # mataba todo el proceso.
             print(
                 f"Atlas: no pude consultar Telegram ({error}); reintento en unos segundos."
             )
+            time.sleep(3)
             continue
 
         for update in respuesta.get("result", []):

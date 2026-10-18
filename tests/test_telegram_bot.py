@@ -26,6 +26,17 @@ def _sin_confirmaciones_pendientes():
     bot._pending_typo_by_chat.clear()
 
 
+class TestProcessTextStart:
+    def test_start_no_se_guarda_y_saluda(self):
+        # Bug real: Telegram manda "/start" solo al abrir el chat por
+        # primera vez, y antes de este fix quedaba guardado como una nota.
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            bot.process_text(123, "/start")
+
+            assert load_entries() == []
+            assert "Atlas" in enviar.call_args[0][1]
+
+
 class TestProcessTextCaptura:
     def test_gasto_valido_se_guarda_y_responde(self):
         with archivo_temporal(), patch.object(bot, "send_message") as enviar:
@@ -161,3 +172,28 @@ class TestProcessCallbackBorrar:
             )
 
             assert len(load_entries()) == 1
+
+
+class TestRunResiliencia:
+    def test_un_corte_de_conexion_no_mata_el_loop(self):
+        # Bug real: ConnectionResetError no estaba en la lista de errores
+        # absorbidos, así que un corte de conexión tiraba abajo todo el
+        # bot. Ahora se absorbe como cualquier otro problema de red, y el
+        # loop sigue a la siguiente vuelta.
+        intentos = {"n": 0}
+
+        def falso_call(metodo, params=None, payload=None):
+            intentos["n"] += 1
+
+            if intentos["n"] == 1:
+                raise ConnectionResetError("corte simulado")
+
+            raise RuntimeError("siguió a la segunda vuelta")
+
+        with patch.object(bot, "TOKEN", "fake-token"), patch.object(
+            bot, "_call", side_effect=falso_call
+        ), patch.object(bot, "time"):
+            with pytest.raises(RuntimeError, match="siguió a la segunda vuelta"):
+                bot.run()
+
+        assert intentos["n"] == 2

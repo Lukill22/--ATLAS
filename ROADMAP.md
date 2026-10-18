@@ -228,6 +228,9 @@ Versión mínima:
 - [x] Token en `ATLAS_TELEGRAM_TOKEN`, nunca versionado.
 - [x] `handle_command()` se extrajo de `web.py` a `main.py` para compartirla entre los tres canales (terminal, web, bot).
 - [x] Pruebas automatizadas mockeando el envío a Telegram.
+- [x] Bug real encontrado probándolo en vivo: un corte de conexión (`ConnectionResetError`) no estaba absorbido y tiraba abajo todo el bot. Corregido, con una espera antes de reintentar.
+- [x] El `/start` automático de Telegram ya no se guarda como nota; el bot saluda en su lugar.
+- [x] `HELP_TEXT` (compartido con terminal y web) se achicó: sin el bloque de "cómo capturar", enfocado en qué se puede consultar.
 
 Fuera de alcance (a propósito): correrlo como servicio que arranque solo
 (systemd, Termux:Boot); por ahora se arranca a mano cuando se lo quiere
