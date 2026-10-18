@@ -14,14 +14,6 @@ DATA_FILE = Path(
     os.environ.get("ATLAS_DATA_FILE", PROJECT_ROOT / "data" / "entries.jsonl")
 )
 
-# La memoria es un archivo distinto de entries.jsonl a propósito: no es un
-# registro cronológico que crece, es un conjunto de hechos (clave -> valor)
-# que se actualizan con el tiempo ("presupuesto mensual" hoy puede valer
-# 200000 y el mes que viene otra cosa, pero sigue siendo un solo hecho).
-MEMORY_FILE = Path(
-    os.environ.get("ATLAS_MEMORY_FILE", PROJECT_ROOT / "data" / "memory.json")
-)
-
 # Un monto es una secuencia de dígitos, opcionalmente agrupada de a 3 con
 # "." o "," como separador de miles (ej. "15000", "15.000", "1.500.000").
 _AMOUNT_PATTERN = re.compile(r"^\d{1,3}([.,]\d{3})*$|^\d+$")
@@ -88,6 +80,54 @@ def parse_income(text: str) -> dict | None:
     """
 
     return _parse_amount_entry(text, "ingreso:")
+
+
+# "19/10 08:00 texto" o "19/10/2026 08:00 texto" (año opcional, usa el
+# actual si falta). Fecha y hora con formato fijo, sin adivinar, igual
+# que el resto de Atlas.
+_REMINDER_PATTERN = re.compile(
+    r"^(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\s+(\d{1,2}):(\d{2})\s+(.+)$"
+)
+
+
+def parse_reminder(text: str) -> dict | None:
+    """Extrae fecha, hora y descripción desde un texto de recordatorio.
+
+    Formato esperado:
+    recordatorio: 19/10 08:00 sacar la basura
+    """
+
+    if not text.lower().startswith("recordatorio:"):
+        return None
+
+    content = text[len("recordatorio:") :].strip()
+
+    if not content:
+        return None
+
+    match = _REMINDER_PATTERN.match(content)
+
+    if match is None:
+        return None
+
+    dia, mes, anio, hora, minuto, descripcion = match.groups()
+
+    try:
+        due_at = datetime(
+            int(anio) if anio else date.today().year,
+            int(mes),
+            int(dia),
+            int(hora),
+            int(minuto),
+        )
+    except ValueError:
+        return None
+
+    return {
+        "due_at": due_at.isoformat(timespec="minutes"),
+        "description": descripcion.strip(),
+        "notified": False,
+    }
 
 
 def _next_id(entries: list[dict]) -> int:
@@ -178,109 +218,14 @@ def create_backup() -> Path | None:
     return backup_path
 
 
-def load_memory() -> dict:
-    """Lee los hechos guardados en memoria. {} si no hay nada o está dañado."""
+def save_entry(entry_type: str, text: str, chat_id: int | None = None) -> dict:
+    """Crea y guarda un registro nuevo.
 
-    if not MEMORY_FILE.exists():
-        return {}
-
-    try:
-        with MEMORY_FILE.open("r", encoding="utf-8") as file:
-            memoria = json.load(file)
-
-    except json.JSONDecodeError:
-        print("Atlas: No pude leer la memoria guardada; la trato como vacía.")
-        return {}
-
-    return memoria if isinstance(memoria, dict) else {}
-
-
-def _save_memory(memoria: dict) -> None:
-    """Reescribe el archivo de memoria completo, de forma segura (igual que
-    _write_lines: archivo temporal + reemplazo, para no dejarlo a medias).
+    chat_id identifica a quién avisarle si entry_type es "recordatorio"
+    (solo el bot de Telegram puede avisar de verdad; la terminal y la web
+    lo pasan en None, así que ese recordatorio queda sin nadie a quien
+    avisar, pero se puede seguir listando).
     """
-
-    MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    temp_file = MEMORY_FILE.with_name(MEMORY_FILE.name + ".tmp")
-
-    try:
-        with temp_file.open("w", encoding="utf-8") as file:
-            json.dump(memoria, file, ensure_ascii=False, indent=2)
-            file.flush()
-            os.fsync(file.fileno())
-
-        os.replace(temp_file, MEMORY_FILE)
-
-    except BaseException:
-        with suppress(OSError):
-            temp_file.unlink()
-
-        raise
-
-
-def parse_remember_command(text: str) -> tuple[str, str] | None:
-    """Interpreta "recordar <clave>: <valor>". None si no matchea ese formato."""
-
-    if not text.lower().startswith("recordar "):
-        return None
-
-    resto = text[len("recordar ") :]
-
-    if ":" not in resto:
-        return None
-
-    clave, _, valor = resto.partition(":")
-    clave = clave.strip().lower()
-    valor = valor.strip()
-
-    if not clave or not valor:
-        return None
-
-    return clave, valor
-
-
-def remember_fact(clave: str, valor: str) -> None:
-    """Guarda o actualiza un hecho en memoria."""
-
-    memoria = load_memory()
-    memoria[clave] = valor
-    _save_memory(memoria)
-
-
-def forget_fact(clave: str) -> bool:
-    """Borra un hecho de memoria. Devuelve True si existía."""
-
-    memoria = load_memory()
-    clave = clave.strip().lower()
-
-    if clave not in memoria:
-        return False
-
-    del memoria[clave]
-    _save_memory(memoria)
-
-    return True
-
-
-def show_memory() -> None:
-    """Muestra todos los hechos guardados en memoria."""
-
-    memoria = load_memory()
-
-    if not memoria:
-        print("Atlas: Todavía no recuerdo nada.")
-        return
-
-    print("\nAtlas: Esto es lo que recuerdo:\n")
-
-    for clave, valor in memoria.items():
-        print(f"  {clave}: {valor}")
-
-    print()
-
-
-def save_entry(entry_type: str, text: str) -> dict:
-    """Crea y guarda un registro nuevo."""
 
     entry = {
         "id": _next_id(load_entries()),
@@ -288,6 +233,9 @@ def save_entry(entry_type: str, text: str) -> dict:
         "type": entry_type,
         "text": text,
     }
+
+    if chat_id is not None:
+        entry["chat_id"] = chat_id
 
     if entry_type == "gasto":
         expense_data = parse_expense(text)
@@ -310,6 +258,17 @@ def save_entry(entry_type: str, text: str) -> dict:
             )
 
         entry.update(income_data)
+
+    if entry_type == "recordatorio":
+        reminder_data = parse_reminder(text)
+
+        if reminder_data is None:
+            raise ValueError(
+                "No pude detectar la fecha del recordatorio. "
+                "Usá este formato: recordatorio: 19/10 08:00 sacar la basura"
+            )
+
+        entry.update(reminder_data)
 
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -408,6 +367,57 @@ def mark_task_done(entry_id: int) -> str:
     return "no_encontrado"
 
 
+def get_due_reminders(entries: list[dict], ahora: datetime) -> list[dict]:
+    """Devuelve los recordatorios vencidos (due_at <= ahora) que todavía no
+    se avisaron. Función pura (no lee archivos), para poder probarla con
+    una fecha fija en vez de datetime.now().
+    """
+
+    vencidos = []
+
+    for entry in entries:
+        if entry.get("type") != "recordatorio" or entry.get("notified"):
+            continue
+
+        due_at = entry.get("due_at")
+
+        if not due_at:
+            continue
+
+        try:
+            due = datetime.fromisoformat(due_at)
+        except ValueError:
+            continue
+
+        if due <= ahora:
+            vencidos.append(entry)
+
+    return vencidos
+
+
+def mark_reminder_notified(entry_id: int) -> bool:
+    """Marca un recordatorio como ya avisado. True si lo encontró."""
+
+    lines = _read_lines()
+
+    for index, line in enumerate(lines):
+        entry = _parse_line(line)
+
+        if entry is None or entry.get("id") != entry_id:
+            continue
+
+        if entry.get("type") != "recordatorio":
+            return False
+
+        entry["notified"] = True
+        lines[index] = json.dumps(entry, ensure_ascii=False)
+        _write_lines(lines)
+
+        return True
+
+    return False
+
+
 def parse_id_command(command: str, keyword: str) -> int | None:
     """Extrae un id numérico de un comando tipo "borrar 3".
 
@@ -445,6 +455,9 @@ def detect_entry_type(text: str) -> str:
     if lowered_text.startswith("idea:"):
         return "idea"
 
+    if lowered_text.startswith("recordatorio:"):
+        return "recordatorio"
+
     return "nota"
 
 
@@ -460,6 +473,8 @@ _PROBABLE_PREFIX = {
     "tareas": "tarea:",
     "idea": "idea:",
     "ideas": "idea:",
+    "recordatorio": "recordatorio:",
+    "recordatorios": "recordatorio:",
 }
 
 # Palabra base de cada prefijo, para buscar errores de tipeo más sueltos
@@ -469,6 +484,7 @@ _KNOWN_KEYWORDS = {
     "ingreso": "ingreso:",
     "tarea": "tarea:",
     "idea": "idea:",
+    "recordatorio": "recordatorio:",
 }
 
 # Por debajo de esto empiezan a aparecer falsos positivos con palabras
@@ -521,6 +537,7 @@ _LIST_TYPE_WORDS = {
     "tareas": "tarea",
     "ideas": "idea",
     "notas": "nota",
+    "recordatorios": "recordatorio",
 }
 
 _PERIOD_WORDS = {"hoy", "mes"}
@@ -612,6 +629,18 @@ def format_entry_summary(entry: dict) -> str:
     if category == "tarea":
         estado = "[x]" if entry.get("done") else "[ ]"
         return f"{estado} [tarea] {text}"
+
+    if category == "recordatorio" and "due_at" in entry:
+        try:
+            fecha_legible = datetime.fromisoformat(entry["due_at"]).strftime(
+                "%d/%m %H:%M"
+            )
+        except ValueError:
+            fecha_legible = entry["due_at"]
+
+        estado = "✅" if entry.get("notified") else "⏰"
+        descripcion = entry.get("description", text)
+        return f"{estado} [recordatorio] {fecha_legible} - {descripcion}"
 
     return f"[{category}] {text}"
 
@@ -746,7 +775,7 @@ def show_monthly_balance() -> None:
 
 HELP_TEXT = """Comandos disponibles:
 
-  listar / listar gastos / ingresos / tareas / ideas / notas
+  listar / listar gastos / ingresos / tareas / ideas / notas / recordatorios
   listar hoy / mes
 
   total gastos
@@ -756,16 +785,15 @@ HELP_TEXT = """Comandos disponibles:
   hecha <id>
   backup
 
-  recordar <algo>: <valor>
-  que recordás
-  olvidar <algo>
+  recordatorio: 19/10 08:00 sacar la basura
 
   ayuda
   salir"""
 # La terminal, la web y el bot de Telegram muestran este mismo texto (la
 # web y el bot no tienen "salir": cerrar la pestaña/chat alcanza), para que
 # la ayuda nunca se desincronice entre los tres. No incluye cómo capturar
-# (gasto:/tarea:/etc.): una vez que se sabe usar, esa parte sobra acá.
+# gasto:/tarea:/etc. (una vez que se sabe usar, esa parte sobra acá), pero
+# sí el formato de "recordatorio:" porque la fecha/hora no es adivinable.
 
 
 def show_help() -> None:
@@ -809,7 +837,6 @@ _FIXED_COMMANDS = [
     "balance dia",
     "balance mes",
     "backup",
-    "que recordas",
 ]
 
 # Palabras de relleno que se ignoran al comparar (así "total DE gatos"
@@ -847,24 +874,23 @@ def _match_fixed_command(comando: str) -> str | None:
 
 def handle_command(texto: str) -> dict | None:
     """Interpreta un comando de texto (ayuda, listar, balance, borrar,
-    hecha, recordar/que recordás/olvidar, backup) fuera de la terminal:
-    lo usan tanto la interfaz web como el bot de Telegram, para no
-    duplicar esta lógica en cada canal de entrada nuevo.
+    hecha, backup) fuera de la terminal: lo usan tanto la interfaz web
+    como el bot de Telegram, para no duplicar esta lógica en cada canal
+    de entrada nuevo.
 
     Devuelve {"respuesta": texto} para mostrar como respuesta, o
     {"redirect_borrar": id} cuando hace falta confirmar un borrado antes
     de ejecutarlo (cada canal decide cómo pedir esa confirmación).
 
     None si texto no es ninguno de estos comandos (se trata como una
-    captura normal: gasto/ingreso/tarea/idea/nota).
+    captura normal: gasto/ingreso/tarea/idea/recordatorio/nota).
     """
 
     # Se tolera un ":" de más al final (ej. "ayuda:", "backup:"): es un
     # error natural de cometer porque el resto de Atlas sí usa ":" para
-    # capturar (gasto:, tarea:). Solo afecta esta copia usada para
-    # comparar comandos, nunca al "texto" original que se usa para
-    # capturas (recordar sigue necesitando su ":" en el medio: "recordar
-    # algo: valor" no tiene ":" al final, así que no se ve afectado).
+    # capturar (gasto:, tarea:, recordatorio:). Solo afecta esta copia
+    # usada para comparar comandos, nunca al "texto" original que se usa
+    # para capturas.
     comando = texto.strip().lower().rstrip(":")
 
     if comando == "ayuda":
@@ -895,33 +921,6 @@ def handle_command(texto: str) -> dict | None:
             return {"respuesta": "Todavía no hay nada guardado para respaldar."}
 
         return {"respuesta": f"Copia de seguridad guardada en {backup_path.name}."}
-
-    if comando in {"recordar", "que recordas"}:
-        memoria = load_memory()
-
-        if not memoria:
-            return {"respuesta": "Todavía no recuerdo nada."}
-
-        lineas = [f"{clave}: {valor}" for clave, valor in memoria.items()]
-        return {"respuesta": "Esto es lo que recuerdo:\n" + "\n".join(lineas)}
-
-    if comando.startswith("recordar "):
-        hecho = parse_remember_command(texto)
-
-        if hecho is None:
-            return {"respuesta": "Usá este formato: recordar <algo>: <valor>"}
-
-        clave, valor = hecho
-        remember_fact(clave, valor)
-        return {"respuesta": f"Voy a recordar que {clave} es {valor}."}
-
-    if comando.startswith("olvidar "):
-        clave = comando[len("olvidar ") :].strip()
-
-        if clave and forget_fact(clave):
-            return {"respuesta": f"Me olvidé de '{clave}'."}
-
-        return {"respuesta": f"No tenía nada guardado como '{clave}'."}
 
     delete_id = parse_id_command(comando, "borrar")
 
@@ -1059,32 +1058,6 @@ def main() -> None:
 
         if command == "backup":
             show_backup()
-            continue
-
-        if command in {"recordar", "que recordas"}:
-            show_memory()
-            continue
-
-        if command.startswith("recordar "):
-            hecho = parse_remember_command(user_input)
-
-            if hecho is None:
-                print("Atlas: Usá este formato: recordar <algo>: <valor>")
-            else:
-                clave, valor = hecho
-                remember_fact(clave, valor)
-                print(f"Atlas: Voy a recordar que {clave} es {valor}.")
-
-            continue
-
-        if command.startswith("olvidar "):
-            clave = command[len("olvidar ") :].strip()
-
-            if clave and forget_fact(clave):
-                print(f"Atlas: Me olvidé de '{clave}'.")
-            else:
-                print(f"Atlas: No tenía nada guardado como '{clave}'.")
-
             continue
 
         delete_id = parse_id_command(command, "borrar")

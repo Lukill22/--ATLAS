@@ -20,16 +20,13 @@ import atlas.main as atlas_main  # noqa: E402
 
 @contextmanager
 def archivo_temporal():
-    """Redirige DATA_FILE y MEMORY_FILE a un directorio temporal durante la
-    prueba. Así las pruebas de guardado y lectura nunca tocan los archivos
-    reales de `data/`. Lo usan test_main.py y test_web.py.
+    """Redirige DATA_FILE a un directorio temporal durante la prueba. Así
+    las pruebas de guardado y lectura nunca tocan el archivo real de
+    `data/`. Lo usan test_main.py, test_web.py y test_telegram_bot.py.
     """
 
     with tempfile.TemporaryDirectory() as carpeta:
         ruta = Path(carpeta) / "entries.jsonl"
-        ruta_memoria = Path(carpeta) / "memory.json"
 
-        with patch.object(atlas_main, "DATA_FILE", ruta), patch.object(
-            atlas_main, "MEMORY_FILE", ruta_memoria
-        ):
+        with patch.object(atlas_main, "DATA_FILE", ruta):
             yield ruta

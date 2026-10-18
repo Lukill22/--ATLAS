@@ -2,16 +2,17 @@
 
 No hablan con la API real de Telegram: mockean send_message/_answer_callback
 y usan el mismo archivo_temporal() de conftest.py, así nunca tocan
-data/entries.jsonl ni data/memory.json reales.
+data/entries.jsonl real.
 """
 
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
 from conftest import archivo_temporal
 
 import atlas.telegram_bot as bot
-from atlas.main import load_entries
+from atlas.main import load_entries, save_entry
 
 
 @pytest.fixture(autouse=True)
@@ -197,3 +198,55 @@ class TestRunResiliencia:
                 bot.run()
 
         assert intentos["n"] == 2
+
+
+class TestRecordatorios:
+    def test_crear_recordatorio_guarda_el_chat_id(self):
+        with archivo_temporal(), patch.object(bot, "send_message"):
+            bot.process_text(123, "recordatorio: 19/10 08:00 sacar la basura")
+
+            entry = load_entries()[0]
+            assert entry["type"] == "recordatorio"
+            assert entry["chat_id"] == 123
+
+    def test_avisar_recordatorios_vencidos_manda_el_mensaje(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            entry = save_entry(
+                "recordatorio",
+                "recordatorio: 19/10 08:00 sacar la basura",
+                chat_id=123,
+            )
+            with patch.object(bot, "datetime") as fecha_falsa:
+                fecha_falsa.now.return_value = datetime(2026, 10, 19, 8, 1)
+                bot.avisar_recordatorios_vencidos()
+
+            enviar.assert_called_once_with(123, "⏰ Recordatorio: sacar la basura")
+            assert load_entries()[0]["notified"] is True
+            assert load_entries()[0]["id"] == entry["id"]
+
+    def test_no_vencido_todavia_no_avisa(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            save_entry(
+                "recordatorio",
+                "recordatorio: 19/10 08:00 sacar la basura",
+                chat_id=123,
+            )
+            with patch.object(bot, "datetime") as fecha_falsa:
+                fecha_falsa.now.return_value = datetime(2026, 10, 19, 7, 59)
+                bot.avisar_recordatorios_vencidos()
+
+            enviar.assert_not_called()
+            assert load_entries()[0]["notified"] is False
+
+    def test_recordatorio_sin_chat_id_se_marca_avisado_sin_mandar_nada(self):
+        # Creado desde la terminal o la web: nadie a quien avisarle, pero
+        # tampoco hay que seguir revisándolo para siempre.
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            save_entry("recordatorio", "recordatorio: 19/10 08:00 sacar la basura")
+
+            with patch.object(bot, "datetime") as fecha_falsa:
+                fecha_falsa.now.return_value = datetime(2026, 10, 19, 8, 1)
+                bot.avisar_recordatorios_vencidos()
+
+            enviar.assert_not_called()
+            assert load_entries()[0]["notified"] is True

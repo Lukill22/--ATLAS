@@ -244,23 +244,21 @@ class TestComandosEnElComposer:
 
             assert b"Copia de seguridad guardada" in respuesta.data
 
-    def test_recordar_y_que_recordas(self):
+    def test_crear_recordatorio_y_listarlo(self):
         with archivo_temporal():
-            cliente().post("/agregar", data={"texto": "recordar presupuesto: 200000"})
-
-            respuesta = cliente().post("/agregar", data={"texto": "que recordas"})
-
-            assert b"presupuesto: 200000" in respuesta.data
-            assert load_entries() == []  # no se guarda como entrada normal
-
-    def test_olvidar(self):
-        with archivo_temporal():
-            cliente().post("/agregar", data={"texto": "recordar presupuesto: 200000"})
-            respuesta = cliente().post(
-                "/agregar", data={"texto": "olvidar presupuesto"}
+            cliente().post(
+                "/agregar",
+                data={"texto": "recordatorio: 19/10 08:00 sacar la basura"},
             )
 
-            assert b"Me olvid" in respuesta.data
+            respuesta = cliente().post(
+                "/agregar", data={"texto": "listar recordatorios"}
+            )
+
+            assert b"sacar la basura" in respuesta.data
+            assert load_entries()[0]["type"] == "recordatorio"
+            # Creado desde la web, sin chat_id: no hay a quien avisarle.
+            assert "chat_id" not in load_entries()[0]
 
     def test_listar_tareas(self):
         with archivo_temporal():

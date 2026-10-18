@@ -125,7 +125,7 @@ Versión mínima:
 Fuera de alcance (a propósito): "esta semana" (necesita calcular el inicio de
 semana, no es solo un prefijo de fecha como "hoy"/"mes").
 
-## Sprint 4 — Memoria local simple (terminado)
+## Sprint 4 — Memoria local simple (revertido, ver Sprint 7)
 
 Problema que resuelve: Atlas solo tenía un registro cronológico
 (`entries.jsonl`). No había forma de guardar un hecho que se actualiza con el
@@ -148,6 +148,13 @@ Versión mínima:
 Fuera de alcance (a propósito): que Atlas use estos hechos automáticamente
 (por ejemplo, avisar si un gasto supera el presupuesto recordado) — eso ya
 empieza a ser lógica de asistente, no solo de almacenamiento.
+
+**Actualización — Sprint 7:** la nota de arriba se cumplió. Después de usar
+Atlas un tiempo, nunca se usó `recordar`/`olvidar` para nada real — lo que
+el usuario quería era un recordatorio con alarma, no un dato fijo. Se sacó
+por completo (ver Sprint 7) en vez de mantenerlo sin uso. Queda documentado
+acá como ejemplo de una función construida sin validar primero, y lo que
+pasó después: exactamente lo que la nota original anticipaba.
 
 ## Sprint 5 — Interfaz web local (terminado)
 
@@ -237,6 +244,26 @@ Versión mínima:
 Fuera de alcance (a propósito): correrlo como servicio que arranque solo
 (systemd, Termux:Boot); por ahora se arranca a mano cuando se lo quiere
 usar. WhatsApp sigue descartado por la complejidad de Meta Developer.
+
+## Sprint 7 — Recordatorios con alarma, reemplazando la memoria (terminado)
+
+Problema que resuelve: lo que el usuario quería de `recordar` en realidad
+era un recordatorio con alarma para una tarea o evento futuro, no un dato
+fijo para consultar. La memoria (Sprint 4) nunca se usó en la práctica —
+confirmado después de usar Atlas un tiempo, tal como esa misma nota
+anticipaba. Se sacó por completo en vez de mantener algo sin uso.
+
+Versión mínima:
+
+- [x] `recordatorio: 19/10 08:00 sacar la basura`: nuevo tipo de captura, fecha y hora en formato fijo (sin adivinar).
+- [x] Se guarda como cualquier otro registro en `entries.jsonl` (id, se puede listar y borrar) — no un archivo separado como la memoria vieja.
+- [x] Solo el bot de Telegram puede avisar de verdad: revisa recordatorios vencidos en el mismo loop que ya consulta mensajes, sin hilos ni procesos nuevos. Si el bot no estaba corriendo, avisa tarde en vez de perderlo.
+- [x] La terminal y la web pueden crear/listar recordatorios, pero no pueden avisar (limitación conocida, documentada).
+- [x] Se sacaron `recordar`/`que recordás`/`olvidar` y `data/memory.json` por completo.
+- [x] Pruebas automatizadas (parseo de fecha, detección de vencidos, aviso con y sin chat_id).
+
+Fuera de alcance (a propósito): recordatorios repetitivos (todos los días,
+cada semana), avisar por web/terminal de alguna forma.
 
 ---
 

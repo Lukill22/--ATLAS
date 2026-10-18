@@ -59,6 +59,13 @@ tanto en vez de que Telegram te llame a vos.
 3. Buscá tu bot en Telegram y escribile — entiende lo mismo que la terminal
    y la web (`gasto: 15000 nafta`, `ayuda`, `listar`, `balance dia`, etc.).
 
+**Recordatorios con alarma:** `recordatorio: 19/10 08:00 sacar la basura`
+guarda un aviso para esa fecha y hora. **Solo el bot de Telegram puede
+avisarte de verdad** (revisa recordatorios vencidos mientras está corriendo)
+— la terminal y la web pueden crear y listar recordatorios, pero no pueden
+sonar una alarma. Si el bot no estaba corriendo a esa hora, te avisa tarde
+en vez de perderlo.
+
 ## Cómo correr las pruebas
 
 ```bash

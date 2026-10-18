@@ -5,7 +5,7 @@ E/S con lógica; eso queda para cuando valga la pena separarlo.
 """
 
 import json
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import patch
 
 import pytest
@@ -22,18 +22,18 @@ from atlas.main import (
     detect_probable_typo,
     filter_by_period,
     find_entry,
-    forget_fact,
+    format_entry_summary,
     format_money,
+    get_due_reminders,
     handle_command,
     load_entries,
-    load_memory,
+    mark_reminder_notified,
     mark_task_done,
     parse_expense,
     parse_id_command,
     parse_income,
     parse_list_command,
-    parse_remember_command,
-    remember_fact,
+    parse_reminder,
     save_entry,
 )
 
@@ -680,77 +680,163 @@ class TestCreateBackup:
             assert ilegible in backup_path.read_text(encoding="utf-8")
 
 
-class TestParseRememberCommand:
-    def test_formato_valido(self):
-        assert parse_remember_command("recordar presupuesto: 200000") == (
-            "presupuesto",
-            "200000",
-        )
+class TestParseReminder:
+    def test_formato_valido_sin_anio(self):
+        assert parse_reminder("recordatorio: 19/10 08:00 sacar la basura") == {
+            "due_at": f"{date.today().year}-10-19T08:00",
+            "description": "sacar la basura",
+            "notified": False,
+        }
 
-    def test_no_distingue_mayusculas_en_la_clave(self):
-        assert parse_remember_command("recordar Presupuesto: 200000") == (
-            "presupuesto",
-            "200000",
-        )
+    def test_formato_valido_con_anio(self):
+        assert parse_reminder("recordatorio: 19/10/2027 08:00 turno medico") == {
+            "due_at": "2027-10-19T08:00",
+            "description": "turno medico",
+            "notified": False,
+        }
 
-    def test_sin_dos_puntos_devuelve_none(self):
-        assert parse_remember_command("recordar presupuesto 200000") is None
+    def test_no_distingue_mayusculas_en_el_prefijo(self):
+        assert parse_reminder("Recordatorio: 19/10 08:00 algo") is not None
 
     def test_sin_prefijo_devuelve_none(self):
-        assert parse_remember_command("presupuesto: 200000") is None
+        assert parse_reminder("19/10 08:00 sacar la basura") is None
 
-    def test_clave_vacia_devuelve_none(self):
-        assert parse_remember_command("recordar : 200000") is None
+    def test_sin_hora_devuelve_none(self):
+        assert parse_reminder("recordatorio: 19/10 sacar la basura") is None
 
-    def test_valor_vacio_devuelve_none(self):
-        assert parse_remember_command("recordar presupuesto:") is None
+    def test_sin_texto_devuelve_none(self):
+        assert parse_reminder("recordatorio: 19/10 08:00") is None
+
+    def test_fecha_invalida_devuelve_none(self):
+        assert parse_reminder("recordatorio: 31/02 08:00 algo imposible") is None
+
+    def test_sin_contenido_devuelve_none(self):
+        assert parse_reminder("recordatorio:") is None
 
 
-class TestMemoria:
-    def test_memoria_vacia_al_principio(self):
+class TestGuardarRecordatorio:
+    def test_guarda_con_chat_id(self):
         with archivo_temporal():
-            assert load_memory() == {}
+            entry = save_entry(
+                "recordatorio",
+                "recordatorio: 19/10 08:00 sacar la basura",
+                chat_id=123,
+            )
 
-    def test_recordar_y_leer_un_hecho(self):
+            assert entry["chat_id"] == 123
+            assert entry["description"] == "sacar la basura"
+            assert entry["notified"] is False
+
+    def test_sin_chat_id_no_guarda_esa_clave(self):
         with archivo_temporal():
-            remember_fact("presupuesto", "200000")
+            entry = save_entry(
+                "recordatorio", "recordatorio: 19/10 08:00 sacar la basura"
+            )
 
-            assert load_memory() == {"presupuesto": "200000"}
+            assert "chat_id" not in entry
 
-    def test_recordar_de_nuevo_actualiza_en_vez_de_duplicar(self):
-        with archivo_temporal():
-            remember_fact("presupuesto", "200000")
-            remember_fact("presupuesto", "250000")
-
-            assert load_memory() == {"presupuesto": "250000"}
-
-    def test_recordar_no_borra_otros_hechos(self):
-        with archivo_temporal():
-            remember_fact("presupuesto", "200000")
-            remember_fact("cumpleaños", "5 de mayo")
-
-            assert load_memory() == {
-                "presupuesto": "200000",
-                "cumpleaños": "5 de mayo",
-            }
-
-    def test_olvidar_un_hecho_existente(self):
-        with archivo_temporal():
-            remember_fact("presupuesto", "200000")
-
-            assert forget_fact("presupuesto") is True
-            assert load_memory() == {}
-
-    def test_olvidar_algo_inexistente_devuelve_false(self):
-        with archivo_temporal():
-            assert forget_fact("algo") is False
-
-    def test_memoria_dañada_se_trata_como_vacia(self):
+    def test_formato_invalido_lanza_error_y_no_guarda(self):
         with archivo_temporal() as ruta:
-            ruta_memoria = ruta.with_name("memory.json")
-            ruta_memoria.write_text("esto no es json", encoding="utf-8")
+            with pytest.raises(ValueError):
+                save_entry("recordatorio", "recordatorio: mañana sacar la basura")
 
-            assert load_memory() == {}
+            assert not ruta.exists()
+
+
+class TestGetDueReminders:
+    AHORA = datetime(2026, 10, 19, 8, 0)
+
+    def test_vencido_y_sin_avisar_aparece(self):
+        entries = [
+            {
+                "id": 1,
+                "type": "recordatorio",
+                "due_at": "2026-10-19T07:59",
+                "notified": False,
+            }
+        ]
+
+        assert get_due_reminders(entries, self.AHORA) == entries
+
+    def test_todavia_no_vencido_no_aparece(self):
+        entries = [
+            {
+                "id": 1,
+                "type": "recordatorio",
+                "due_at": "2026-10-19T08:01",
+                "notified": False,
+            }
+        ]
+
+        assert get_due_reminders(entries, self.AHORA) == []
+
+    def test_ya_avisado_no_aparece_de_nuevo(self):
+        entries = [
+            {
+                "id": 1,
+                "type": "recordatorio",
+                "due_at": "2026-10-19T07:00",
+                "notified": True,
+            }
+        ]
+
+        assert get_due_reminders(entries, self.AHORA) == []
+
+    def test_ignora_otros_tipos(self):
+        entries = [{"id": 1, "type": "tarea", "text": "x"}]
+
+        assert get_due_reminders(entries, self.AHORA) == []
+
+
+class TestMarkReminderNotified:
+    def test_marca_como_avisado(self):
+        with archivo_temporal():
+            entry = save_entry(
+                "recordatorio",
+                "recordatorio: 19/10 08:00 sacar la basura",
+                chat_id=123,
+            )
+
+            assert mark_reminder_notified(entry["id"]) is True
+            assert load_entries()[0]["notified"] is True
+
+    def test_id_inexistente_devuelve_false(self):
+        with archivo_temporal():
+            assert mark_reminder_notified(999) is False
+
+    def test_no_es_recordatorio_devuelve_false(self):
+        with archivo_temporal():
+            entry = save_entry("gasto", "gasto: 5000 pan")
+
+            assert mark_reminder_notified(entry["id"]) is False
+
+
+class TestFormatEntrySummaryRecordatorio:
+    def test_pendiente_muestra_reloj(self):
+        entry = {
+            "type": "recordatorio",
+            "due_at": "2026-10-19T08:00",
+            "description": "sacar la basura",
+            "notified": False,
+        }
+
+        assert (
+            format_entry_summary(entry)
+            == "⏰ [recordatorio] 19/10 08:00 - sacar la basura"
+        )
+
+    def test_avisado_muestra_check(self):
+        entry = {
+            "type": "recordatorio",
+            "due_at": "2026-10-19T08:00",
+            "description": "sacar la basura",
+            "notified": True,
+        }
+
+        assert (
+            format_entry_summary(entry)
+            == "✅ [recordatorio] 19/10 08:00 - sacar la basura"
+        )
 
 
 class TestHandleCommandTypeado:
@@ -791,14 +877,6 @@ class TestHandleCommandTypeado:
         with archivo_temporal():
             assert handle_command("ayuda:")["es_ayuda"] is True
             assert "Gastaste" in handle_command("total gastos:")["respuesta"]
-
-    def test_recordar_con_dos_puntos_en_el_medio_sigue_funcionando(self):
-        # No-regresión: "recordar algo: valor" sigue necesitando su ":",
-        # no hay que confundir ese caso con el ":" de más al final.
-        with archivo_temporal():
-            resultado = handle_command("recordar presupuesto: 200000")
-
-            assert resultado["respuesta"] == "Voy a recordar que presupuesto es 200000."
 
     def test_no_confunde_listar_con_total(self):
         # "listar gastos" comparte la palabra "gastos" con "total gastos",

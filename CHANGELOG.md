@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0
+
+- Se sacó la memoria (`recordar`/`que recordás`/`olvidar`): nunca se usó en la práctica, y lo que el usuario quería de verdad era otra cosa — un recordatorio con alarma, no un dato fijo para consultar.
+- Nuevo tipo de captura: `recordatorio: 19/10 08:00 sacar la basura`. Se guarda como cualquier otro registro (mismo `entries.jsonl`, con id, se puede listar y borrar), pero con fecha/hora de aviso.
+- **Solo el bot de Telegram puede avisar de verdad**: en el mismo loop que ya consulta mensajes (cada ~30 segundos), revisa si hay recordatorios vencidos y, si hay, manda el mensaje solo — sin hilos ni procesos nuevos. Si el bot no estaba corriendo a esa hora, avisa tarde en vez de perderlo.
+- La terminal y la web pueden crear y listar recordatorios, pero no tienen forma de "sonar" una alarma (no hay nadie mirando en el momento exacto) — es una limitación conocida, no un bug.
+- `listar recordatorios` funciona en los tres canales.
+- 17 pruebas nuevas, 4 viejas (de la memoria) eliminadas (176 en total).
+
 ## 0.7.3
 
 - `listar gastos:` (con los dos puntos de más, un error natural de cometer porque el resto de Atlas sí usa `:` para capturar) ya se reconoce igual que `listar gastos`. Caso real reportado con el bot.

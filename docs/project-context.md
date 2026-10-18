@@ -117,13 +117,12 @@ durante el desarrollo (datos reales perdidos sin ninguna copia).
 `listar hoy`, `listar mes`, `listar tareas hoy`, `listar gastos mes`, etc. Se
 sacó `normalize_list_type` (quedó redundante con `parse_list_command`).
 
-### Sprint 4: memoria local simple — terminado
+### Sprint 4: memoria local simple — revertido (ver Sprint 7)
 
-`recordar <algo>: <valor>` guarda un hecho en `data/memory.json` (clave ->
-valor, se actualiza en vez de acumularse); `que recordas` lista todo; `olvidar
-<algo>` borra uno. Construido sin un problema validado por uso real todavía —
-revisar si la forma elegida sigue teniendo sentido después de usar Atlas un
-tiempo.
+`recordar`/`que recordás`/`olvidar` se construyeron sin un problema validado
+por uso real. Tal como la nota original anticipaba, nunca se usaron en la
+práctica — se sacaron por completo en el Sprint 7, reemplazados por
+recordatorios con alarma de verdad.
 
 ### Sprint 5: interfaz web local — terminado
 
@@ -166,7 +165,18 @@ dependencias nuevas (`urllib`). Probado en vivo con un bot real; se
 encontraron y corrigieron cuatro bugs (un corte de conexión tiraba abajo
 el proceso, el `/start` automático se guardaba como nota, "total de
 gatos" no se reconocía como `total gastos`, y `listar gastos:` con los
-dos puntos de más tampoco). 167 pruebas automatizadas en total.
+dos puntos de más tampoco).
+
+### Sprint 7: recordatorios con alarma, reemplazando la memoria — terminado
+
+Se sacó `recordar`/`que recordás`/`olvidar` (nunca se usaron) y se
+reemplazaron por `recordatorio: 19/10 08:00 texto`. Se guarda como
+cualquier otro registro (no un archivo separado). Solo el bot de Telegram
+puede avisar de verdad — revisa recordatorios vencidos en el mismo loop
+que ya consulta mensajes, sin procesos nuevos; si no estaba corriendo a
+esa hora, avisa tarde en vez de perderlo. La terminal y la web pueden
+crear/listar recordatorios, pero no pueden sonar una alarma (limitación
+conocida). 176 pruebas automatizadas en total.
 
 ## Funciones actuales
 
@@ -175,12 +185,14 @@ gasto: 15000 nafta
 ingreso: 100000 uber
 tarea: comprar arroz
 idea: crear módulo de estudio
+recordatorio: 19/10 08:00 sacar la basura
 listar
 listar gastos
 listar ingresos
 listar tareas
 listar ideas
 listar notas
+listar recordatorios
 listar hoy
 listar mes
 listar <tipo> hoy
@@ -191,9 +203,6 @@ balance mes
 borrar <id>
 hecha <id>
 backup
-recordar <algo>: <valor>
-que recordas
-olvidar <algo>
 ayuda
 salir
 ```
