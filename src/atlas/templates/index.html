@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Atlas</title>
   <style>
+    :root {
+      --marca: #4f46e5;
+      --marca-oscuro: #4338ca;
+      --accent-gasto: #e11d48;
+      --accent-ingreso: #10b981;
+      --accent-tarea: #f59e0b;
+      --accent-idea: #8b5cf6;
+      --accent-nota: #64748b;
+      --accent-recordatorio: #0ea5e9;
+      --accent-balance_diario: #14b8a6;
+    }
     * { box-sizing: border-box; }
     body {
       font-family: system-ui, sans-serif;
@@ -12,10 +23,27 @@
       margin: 1.5rem auto;
       padding: 0 1rem 2rem;
       color: #1a1a1a;
-      background: #f4f5f7;
+      background: linear-gradient(180deg, #f3f1ff 0%, #f4f5f7 220px);
+    }
+
+    /* Marca */
+    .marca { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; }
+    .marca .logo {
+      width: 2.3rem;
+      height: 2.3rem;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--marca), var(--marca-oscuro));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
     }
     h1 { margin: 0; font-size: 1.4rem; }
-    .subtitulo { color: #888; margin: 0.1rem 0 1rem; font-size: 0.85rem; }
+    .subtitulo { color: #888; margin: 0.1rem 0 0; font-size: 0.85rem; }
 
     .flash { padding: 0.6rem 0.8rem; border-radius: 10px; margin-bottom: 0.8rem; font-size: 0.9rem; }
     .flash.ok { background: #e6f4ea; color: #1e4620; }
@@ -29,7 +57,8 @@
       background: white;
       border-radius: 999px;
       padding: 0.3rem 0.3rem 0.3rem 1rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.12);
+      border: 1px solid #eceaff;
     }
     form.capturar input[type=text] {
       flex: 1;
@@ -41,7 +70,7 @@
     }
     form.capturar button.enviar {
       border: none;
-      background: #2563eb;
+      background: linear-gradient(135deg, var(--marca), var(--marca-oscuro));
       color: white;
       width: 2.4rem;
       height: 2.4rem;
@@ -50,19 +79,20 @@
       cursor: pointer;
       flex-shrink: 0;
     }
-    form.capturar button.enviar:active { background: #1d4ed8; }
+    form.capturar button.enviar:active { filter: brightness(0.9); }
 
     /* Burbuja de confirmación de typo, y de respuesta a un comando */
     .pregunta, .respuesta {
       background: white;
       border-radius: 14px;
-      border-left: 4px solid #2563eb;
+      border-left: 4px solid var(--marca);
       padding: 0.7rem 1rem;
       margin-bottom: 0.9rem;
       font-size: 0.95rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
     .respuesta summary { cursor: pointer; font-weight: 500; font-size: 0.9rem; }
-    .respuesta summary::marker { color: #2563eb; }
+    .respuesta summary::marker { color: var(--marca); }
     .respuesta-contenido {
       white-space: pre-wrap;
       font-family: ui-monospace, monospace;
@@ -78,19 +108,22 @@
       font-size: 0.9rem;
       cursor: pointer;
     }
-    .pregunta button.si { background: #2563eb; color: white; }
+    .pregunta button.si { background: var(--marca); color: white; }
     .pregunta button.no { background: #e5e7eb; color: #1a1a1a; }
 
-    /* Resumen compacto */
-    .resumen {
-      display: flex;
-      gap: 1rem;
-      font-size: 0.85rem;
-      color: #444;
-      margin-bottom: 0.9rem;
-      flex-wrap: wrap;
+    /* Resumen: dos chips con el balance de hoy y del mes */
+    .resumen { display: flex; gap: 0.6rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+    .resumen .chip {
+      flex: 1;
+      min-width: 130px;
+      background: white;
+      border-radius: 14px;
+      padding: 0.55rem 0.9rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
-    .resumen .negativo { color: #b00020; font-weight: bold; }
+    .resumen .chip .etiqueta { font-size: 0.75rem; color: #888; }
+    .resumen .chip .valor { font-size: 1.1rem; font-weight: 600; color: var(--accent-ingreso); }
+    .resumen .chip .valor.negativo { color: var(--accent-gasto); }
 
     .periodo { margin-bottom: 1.2rem; display: flex; gap: 0.4rem; }
     .periodo a {
@@ -102,9 +135,11 @@
       color: #444;
       text-decoration: none;
     }
-    .periodo a.activo { background: #2563eb; color: white; border-color: #2563eb; }
+    .periodo a.activo { background: var(--marca); color: white; border-color: var(--marca); }
 
-    /* Pestañas por tipo, con CSS puro (radios ocultos), sin JavaScript */
+    /* Pestañas por tipo, con CSS puro (radios ocultos), sin JavaScript.
+       Cada tipo tiene su propio color de acento, para distinguirlas de un
+       vistazo en vez de que todo se vea con el mismo celeste genérico. */
     .tabs { margin-bottom: 0.8rem; }
     .tab-radio { position: absolute; opacity: 0; pointer-events: none; }
     .tab-label {
@@ -118,12 +153,14 @@
       font-size: 0.85rem;
       color: #444;
     }
-    .tab-radio:checked + .tab-label {
-      background: #2563eb;
-      color: white;
-      border-color: #2563eb;
-    }
-    .tab-radio:focus-visible + .tab-label { outline: 2px solid #2563eb; }
+    #tab-gasto:checked + .tab-label { background: var(--accent-gasto); border-color: var(--accent-gasto); color: white; }
+    #tab-ingreso:checked + .tab-label { background: var(--accent-ingreso); border-color: var(--accent-ingreso); color: white; }
+    #tab-tarea:checked + .tab-label { background: var(--accent-tarea); border-color: var(--accent-tarea); color: white; }
+    #tab-idea:checked + .tab-label { background: var(--accent-idea); border-color: var(--accent-idea); color: white; }
+    #tab-nota:checked + .tab-label { background: var(--accent-nota); border-color: var(--accent-nota); color: white; }
+    #tab-recordatorio:checked + .tab-label { background: var(--accent-recordatorio); border-color: var(--accent-recordatorio); color: white; }
+    #tab-balance_diario:checked + .tab-label { background: var(--accent-balance_diario); border-color: var(--accent-balance_diario); color: white; }
+    .tab-radio:focus-visible + .tab-label { outline: 2px solid var(--marca); }
     .tab-panel { display: none; }
     #tab-gasto:checked ~ .tab-panel.panel-gasto,
     #tab-ingreso:checked ~ .tab-panel.panel-ingreso,
@@ -134,10 +171,19 @@
     #tab-balance_diario:checked ~ .tab-panel.panel-balance_diario {
       display: block;
     }
+    .lista-registros summary {
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.85rem;
+      color: #555;
+      margin-bottom: 0.6rem;
+    }
+    .lista-registros summary::marker { color: var(--marca); }
     .feed { display: flex; flex-direction: column; gap: 0.5rem; }
     .tarjeta {
       background: white;
       border-radius: 14px;
+      border-left: 4px solid #e5e7eb;
       padding: 0.6rem 0.9rem;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
       display: flex;
@@ -145,6 +191,13 @@
       align-items: flex-start;
       gap: 0.6rem;
     }
+    .panel-gasto .tarjeta { border-left-color: var(--accent-gasto); }
+    .panel-ingreso .tarjeta { border-left-color: var(--accent-ingreso); }
+    .panel-tarea .tarjeta { border-left-color: var(--accent-tarea); }
+    .panel-idea .tarjeta { border-left-color: var(--accent-idea); }
+    .panel-nota .tarjeta { border-left-color: var(--accent-nota); }
+    .panel-recordatorio .tarjeta { border-left-color: var(--accent-recordatorio); }
+    .panel-balance_diario .tarjeta { border-left-color: var(--accent-balance_diario); }
     .tarjeta .contenido { min-width: 0; }
     .tarjeta .registro { word-break: break-word; }
     .tarjeta .meta { color: #999; font-size: 0.75rem; margin-top: 0.15rem; }
@@ -168,8 +221,13 @@
   </style>
 </head>
 <body>
-  <h1>Atlas</h1>
-  <p class="subtitulo">Interfaz web local — entiende los mismos comandos que la terminal.</p>
+  <div class="marca">
+    <span class="logo">A</span>
+    <div>
+      <h1>Atlas</h1>
+      <p class="subtitulo">Interfaz web local — entiende los mismos comandos que la terminal.</p>
+    </div>
+  </div>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for categoria, mensaje in messages %}
@@ -204,8 +262,14 @@
   {% endif %}
 
   <div class="resumen">
-    <span>Hoy: <span class="{{ 'negativo' if balance_hoy.balance < 0 else '' }}">{{ format_money(balance_hoy.balance) }}</span></span>
-    <span>Este mes: <span class="{{ 'negativo' if balance_mes.balance < 0 else '' }}">{{ format_money(balance_mes.balance) }}</span></span>
+    <div class="chip">
+      <div class="etiqueta">Hoy</div>
+      <div class="valor {{ 'negativo' if balance_hoy.balance < 0 else '' }}">{{ format_money(balance_hoy.balance) }}</div>
+    </div>
+    <div class="chip">
+      <div class="etiqueta">Este mes</div>
+      <div class="valor {{ 'negativo' if balance_mes.balance < 0 else '' }}">{{ format_money(balance_mes.balance) }}</div>
+    </div>
   </div>
 
   <div class="periodo">
@@ -231,26 +295,29 @@
     {% for seccion in secciones %}
     <div class="tab-panel panel-{{ seccion.tipo }}">
       {% if seccion.entries %}
-      <div class="feed">
-        {% for entry in seccion.entries %}
-        <div class="tarjeta">
-          <div class="contenido">
-            <div class="registro">{{ format_entry_summary(entry) }}</div>
-            <div class="meta">#{{ entry.id if entry.id is not none else "?" }} · {{ entry.created_at or "Fecha desconocida" }}</div>
-          </div>
-          <div class="acciones">
-            {% if entry.id is not none %}
-              {% if entry.type == "tarea" and not entry.done %}
-              <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
-                <button type="submit">Hecha</button>
-              </form>
+      <details class="lista-registros">
+        <summary>Ver registros</summary>
+        <div class="feed">
+          {% for entry in seccion.entries %}
+          <div class="tarjeta">
+            <div class="contenido">
+              <div class="registro">{{ format_entry_summary(entry) }}</div>
+              <div class="meta">#{{ entry.id if entry.id is not none else "?" }} · {{ entry.created_at or "Fecha desconocida" }}</div>
+            </div>
+            <div class="acciones">
+              {% if entry.id is not none %}
+                {% if entry.type == "tarea" and not entry.done %}
+                <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
+                  <button type="submit">Hecha</button>
+                </form>
+                {% endif %}
+                <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
               {% endif %}
-              <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
-            {% endif %}
+            </div>
           </div>
+          {% endfor %}
         </div>
-        {% endfor %}
-      </div>
+      </details>
       {% else %}
       <p class="vacio">Nada todavía.</p>
       {% endif %}

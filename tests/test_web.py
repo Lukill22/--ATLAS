@@ -56,6 +56,21 @@ class TestIndex:
             assert "mejorar atlas" in panel_idea
             assert "comprar arroz" not in panel_idea
 
+    def test_los_registros_de_una_pestana_aparecen_colapsados(self):
+        # Pedido explícito: no mostrar las descripciones directamente al
+        # entrar a una pestaña, solo al desplegar "Ver registros" (y poder
+        # volver a colapsarlo).
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 pan"})
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert '<details class="lista-registros">' in html
+            assert "<summary>Ver registros</summary>" in html
+            # El texto sigue en el HTML (lo esconde el navegador al no
+            # tener "open", no se borra del documento).
+            assert "pan" in html
+
     def test_recordatorios_y_balance_diario_tienen_su_propia_pestana(self):
         # Bug real: estos dos tipos se podían crear y listar (con "listar
         # recordatorios" en el composer), pero no aparecían en ninguna

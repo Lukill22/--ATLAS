@@ -5,11 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Atlas — confirmar borrado</title>
   <style>
+    :root { --marca: #4f46e5; --marca-oscuro: #4338ca; --peligro: #e11d48; }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
-    .registro { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0 1.5rem; word-break: break-word; }
-    button.borrar { background: #b00020; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 1rem; }
-    a.cancelar { margin-left: 1rem; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 480px;
+      margin: 3rem auto;
+      padding: 0 1rem;
+      color: #1a1a1a;
+      background: linear-gradient(180deg, #f3f1ff 0%, #f4f5f7 220px);
+    }
+    .marca { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.2rem; }
+    .marca .logo {
+      width: 2.3rem;
+      height: 2.3rem;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--marca), var(--marca-oscuro));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+    }
+    h1 { margin: 0; font-size: 1.15rem; }
+    .registro {
+      background: white;
+      border-left: 4px solid var(--peligro);
+      border-radius: 14px;
+      padding: 0.9rem 1rem;
+      margin: 0 0 1.5rem;
+      word-break: break-word;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      font-size: 0.95rem;
+    }
+    .registro .meta { color: #999; font-size: 0.8rem; margin-top: 0.3rem; }
+    .acciones { display: flex; gap: 0.6rem; align-items: center; }
+    button.borrar {
+      background: var(--peligro);
+      color: white;
+      border: none;
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    button.borrar:active { filter: brightness(0.9); }
+    a.cancelar {
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      background: #e5e7eb;
+      color: #1a1a1a;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
 
     @media (max-width: 480px) {
       body { margin: 1.5rem auto; }
@@ -17,12 +68,15 @@
   </style>
 </head>
 <body>
-  <h1>¿Borrar este registro?</h1>
-  <div class="registro">
-    #{{ entry.id }} — {{ format_entry_summary(entry) }}<br>
-    Fecha: {{ entry.created_at or "Fecha desconocida" }}
+  <div class="marca">
+    <span class="logo">A</span>
+    <h1>¿Borrar este registro?</h1>
   </div>
-  <form method="post" action="{{ url_for('borrar', entry_id=entry.id) }}">
+  <div class="registro">
+    #{{ entry.id }} — {{ format_entry_summary(entry) }}
+    <div class="meta">Fecha: {{ entry.created_at or "Fecha desconocida" }}</div>
+  </div>
+  <form method="post" action="{{ url_for('borrar', entry_id=entry.id) }}" class="acciones">
     <button type="submit" class="borrar">Sí, borrar</button>
     <a class="cancelar" href="{{ url_for('index') }}">Cancelar</a>
   </form>
