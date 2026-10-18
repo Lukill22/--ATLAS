@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.3
+
+- `listar gastos:` (con los dos puntos de más, un error natural de cometer porque el resto de Atlas sí usa `:` para capturar) ya se reconoce igual que `listar gastos`. Caso real reportado con el bot.
+- Lo mismo para cualquier comando fijo con `:` de más al final (`ayuda:`, `backup:`, `total gastos:`, etc.), sin afectar a `recordar <algo>: <valor>` (que sí necesita su `:` en el medio).
+- 6 pruebas nuevas (167 en total).
+
 ## 0.7.2
 
 - `handle_command` ahora tolera errores de tipeo y palabras de más en los comandos fijos de solo lectura (`ayuda`, `total gastos`, `balance dia`/`mes`, `backup`, `que recordás`): por ejemplo "total de gatos" ya se reconoce como `total gastos`, en vez de guardarse como nota. Caso real reportado usando el bot.

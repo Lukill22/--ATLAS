@@ -197,6 +197,18 @@ class TestParseListCommand:
     def test_texto_sin_relacion_devuelve_none(self):
         assert parse_list_command("total gastos") is None
 
+    def test_dos_puntos_de_mas_en_el_tipo(self):
+        # Bug real reportado con el bot: agregar ":" por costumbre (el
+        # resto de Atlas sí usa ":" para capturar) hacía que esto cayera
+        # como nota en vez de listar.
+        assert parse_list_command("listar gastos:") == {
+            "entry_type": "gasto",
+            "period": None,
+        }
+
+    def test_dos_puntos_de_mas_despues_de_listar_solo(self):
+        assert parse_list_command("listar:") == {"entry_type": None, "period": None}
+
 
 class TestFilterByPeriod:
     HOY = "2026-10-11T10:00:00"
@@ -772,6 +784,21 @@ class TestHandleCommandTypeado:
             assert resultado == {
                 "respuesta": "Todavía no hay nada guardado para respaldar."
             }
+
+    def test_dos_puntos_de_mas_en_comando_fijo(self):
+        # Mismo bug real que "listar gastos:", pero en un comando fijo:
+        # agregar ":" por costumbre no debería tirarlo como nota.
+        with archivo_temporal():
+            assert handle_command("ayuda:")["es_ayuda"] is True
+            assert "Gastaste" in handle_command("total gastos:")["respuesta"]
+
+    def test_recordar_con_dos_puntos_en_el_medio_sigue_funcionando(self):
+        # No-regresión: "recordar algo: valor" sigue necesitando su ":",
+        # no hay que confundir ese caso con el ":" de más al final.
+        with archivo_temporal():
+            resultado = handle_command("recordar presupuesto: 200000")
+
+            assert resultado["respuesta"] == "Voy a recordar que presupuesto es 200000."
 
     def test_no_confunde_listar_con_total(self):
         # "listar gastos" comparte la palabra "gastos" con "total gastos",

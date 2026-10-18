@@ -533,7 +533,14 @@ def parse_list_command(command: str) -> dict | None:
     "listar tareas mes" (el orden tipo-período es fijo). Devuelve None si
     command no empieza con "listar" o tiene alguna palabra que no es ni un
     tipo ni un período conocido.
+
+    Tolera ":" de más al final de "listar" o de cualquier palabra (ej.
+    "listar gastos:"), porque es un error natural de cometer: el resto de
+    Atlas sí usa ":" (gasto:, tarea:), así que es fácil escribirlo de más
+    por costumbre.
     """
+
+    command = command.rstrip(":")
 
     if command != "listar" and not command.startswith("listar "):
         return None
@@ -547,6 +554,8 @@ def parse_list_command(command: str) -> dict | None:
     period: str | None = None
 
     for palabra in palabras:
+        palabra = palabra.rstrip(":")
+
         if palabra in _LIST_TYPE_WORDS and entry_type is None:
             entry_type = _LIST_TYPE_WORDS[palabra]
         elif palabra in _PERIOD_WORDS and period is None:
@@ -850,7 +859,13 @@ def handle_command(texto: str) -> dict | None:
     captura normal: gasto/ingreso/tarea/idea/nota).
     """
 
-    comando = texto.strip().lower()
+    # Se tolera un ":" de más al final (ej. "ayuda:", "backup:"): es un
+    # error natural de cometer porque el resto de Atlas sí usa ":" para
+    # capturar (gasto:, tarea:). Solo afecta esta copia usada para
+    # comparar comandos, nunca al "texto" original que se usa para
+    # capturas (recordar sigue necesitando su ":" en el medio: "recordar
+    # algo: valor" no tiene ":" al final, así que no se ve afectado).
+    comando = texto.strip().lower().rstrip(":")
 
     if comando == "ayuda":
         return {"respuesta": HELP_TEXT, "es_ayuda": True}

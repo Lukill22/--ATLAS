@@ -232,6 +232,7 @@ Versión mínima:
 - [x] El `/start` automático de Telegram ya no se guarda como nota; el bot saluda en su lugar.
 - [x] `HELP_TEXT` (compartido con terminal y web) se achicó: sin el bloque de "cómo capturar", enfocado en qué se puede consultar.
 - [x] Caso real reportado: "total de gatos" (typo + palabra de más) se guardaba como nota. Los comandos fijos de solo lectura (`total gastos`, `balance dia`/`mes`, `ayuda`, `backup`, `que recordás`) ahora toleran esto, sin confundirse con `listar` aunque comparta palabras.
+- [x] Otro caso real: `listar gastos:` (con los dos puntos de más, un hábito lógico porque el resto de Atlas sí usa `:`) también se guardaba como nota. Tolerado para `listar` y para cualquier comando fijo, sin afectar `recordar <algo>: <valor>`.
 
 Fuera de alcance (a propósito): correrlo como servicio que arranque solo
 (systemd, Termux:Boot); por ahora se arranca a mano cuando se lo quiere
