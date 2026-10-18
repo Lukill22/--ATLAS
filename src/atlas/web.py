@@ -35,27 +35,19 @@ from flask import (
 )  # noqa: E402
 
 from atlas.main import (  # noqa: E402
-    HELP_TEXT,
     build_corrected_text,
     calculate_balance,
     calculate_monthly_balance,
-    calculate_total_expenses,
-    create_backup,
     delete_entry,
     detect_entry_type,
     detect_probable_typo,
     filter_by_period,
     find_entry,
-    forget_fact,
     format_entry_summary,
     format_money,
+    handle_command,
     load_entries,
-    load_memory,
     mark_task_done,
-    parse_id_command,
-    parse_list_command,
-    parse_remember_command,
-    remember_fact,
     save_entry,
 )
 
@@ -144,123 +136,6 @@ def _guardar_y_avisar(entry_type: str, texto: str) -> None:
         flash(str(error), "error")
 
 
-def _formatear_balance(resultado: dict) -> str:
-    return (
-        f"Ingresos: {format_money(resultado['income'])} · "
-        f"Gastos: {format_money(resultado['expenses'])} · "
-        f"Balance: {format_money(resultado['balance'])}"
-    )
-
-
-def _handle_command(texto: str) -> dict | None:
-    """Si texto es un comando (como en la terminal: ayuda, listar, balance,
-    borrar, hecha, recordar/que recordás/olvidar, backup), lo ejecuta y
-    devuelve {"respuesta": texto} para mostrar como burbuja, o
-    {"redirect_borrar": id} para mandar a la página de confirmación.
-
-    None si no es ninguno de estos comandos (el composer lo trata como una
-    captura normal: gasto/ingreso/tarea/idea/nota).
-    """
-
-    comando = texto.strip().lower()
-
-    if comando == "ayuda":
-        return {"respuesta": HELP_TEXT, "es_ayuda": True}
-
-    if comando == "total gastos":
-        total = calculate_total_expenses(load_entries())
-        return {"respuesta": f"Gastaste {format_money(total)} en total."}
-
-    if comando == "balance dia":
-        return {
-            "respuesta": _formatear_balance(
-                calculate_balance(load_entries(), date.today())
-            )
-        }
-
-    if comando == "balance mes":
-        return {
-            "respuesta": _formatear_balance(
-                calculate_monthly_balance(load_entries(), date.today())
-            )
-        }
-
-    if comando == "backup":
-        backup_path = create_backup()
-
-        if backup_path is None:
-            return {"respuesta": "Todavía no hay nada guardado para respaldar."}
-
-        return {"respuesta": f"Copia de seguridad guardada en {backup_path.name}."}
-
-    if comando in {"recordar", "que recordas"}:
-        memoria = load_memory()
-
-        if not memoria:
-            return {"respuesta": "Todavía no recuerdo nada."}
-
-        lineas = [f"{clave}: {valor}" for clave, valor in memoria.items()]
-        return {"respuesta": "Esto es lo que recuerdo:\n" + "\n".join(lineas)}
-
-    if comando.startswith("recordar "):
-        hecho = parse_remember_command(texto)
-
-        if hecho is None:
-            return {"respuesta": "Usá este formato: recordar <algo>: <valor>"}
-
-        clave, valor = hecho
-        remember_fact(clave, valor)
-        return {"respuesta": f"Voy a recordar que {clave} es {valor}."}
-
-    if comando.startswith("olvidar "):
-        clave = comando[len("olvidar ") :].strip()
-
-        if clave and forget_fact(clave):
-            return {"respuesta": f"Me olvidé de '{clave}'."}
-
-        return {"respuesta": f"No tenía nada guardado como '{clave}'."}
-
-    delete_id = parse_id_command(comando, "borrar")
-
-    if delete_id is not None:
-        return {"redirect_borrar": delete_id}
-
-    done_id = parse_id_command(comando, "hecha")
-
-    if done_id is not None:
-        resultado = mark_task_done(done_id)
-
-        if resultado == "ok":
-            return {"respuesta": f"Marqué la tarea #{done_id} como hecha."}
-
-        if resultado == "no_es_tarea":
-            return {"respuesta": f"El registro #{done_id} no es una tarea."}
-
-        return {"respuesta": f"No encontré ninguna tarea con id #{done_id}."}
-
-    lista = parse_list_command(comando)
-
-    if lista is not None:
-        entries = load_entries()
-
-        if lista["entry_type"]:
-            entries = [e for e in entries if e.get("type") == lista["entry_type"]]
-
-        entries = filter_by_period(entries, lista["period"])
-        entries = entries[-10:]
-
-        if not entries:
-            return {"respuesta": "No encontré registros para ese filtro."}
-
-        lineas = [
-            f"#{entry.get('id', '?')} {format_entry_summary(entry)}"
-            for entry in reversed(entries)
-        ]
-        return {"respuesta": "\n".join(lineas)}
-
-    return None
-
-
 @app.route("/agregar", methods=["POST"])
 def agregar():
     """Procesa lo que se escribió en el composer: un comando (ayuda,
@@ -277,7 +152,7 @@ def agregar():
     if not texto:
         return redirect(url_for("index"))
 
-    resultado_comando = _handle_command(texto)
+    resultado_comando = handle_command(texto)
 
     if resultado_comando is not None:
         if "redirect_borrar" in resultado_comando:

@@ -36,6 +36,29 @@ la conexión entrante la primera vez (suele preguntar si permitir la app).
 
 Después abrí `http://127.0.0.1:5000/` en el navegador.
 
+### Bot de Telegram (opcional)
+
+Deja capturar y consultar Atlas desde un chat de Telegram, sin abrir ninguna
+otra app. No usa ninguna dependencia nueva (solo `urllib`, de la librería
+estándar), y no necesita ningún servidor público: consulta a Telegram cada
+tanto en vez de que Telegram te llame a vos.
+
+1. Hablale a **@BotFather** en Telegram, pedile un bot nuevo (`/newbot`), y
+   guardá el token que te da.
+2. Corré Atlas con ese token en una variable de entorno (nunca lo escribas
+   directo en un archivo):
+   ```bash
+   # PowerShell
+   $env:ATLAS_TELEGRAM_TOKEN = "el-token-que-te-dio-botfather"
+   python src/atlas/telegram_bot.py
+
+   # bash
+   export ATLAS_TELEGRAM_TOKEN="el-token-que-te-dio-botfather"
+   python src/atlas/telegram_bot.py
+   ```
+3. Buscá tu bot en Telegram y escribile — entiende lo mismo que la terminal
+   y la web (`gasto: 15000 nafta`, `ayuda`, `listar`, `balance dia`, etc.).
+
 ## Cómo correr las pruebas
 
 ```bash
@@ -67,13 +90,15 @@ Atlas/
 │       ├── __init__.py
 │       ├── main.py
 │       ├── web.py
+│       ├── telegram_bot.py
 │       └── templates/
 │           ├── index.html
 │           └── confirmar_borrado.html
 ├── tests/
 │   ├── conftest.py
 │   ├── test_main.py
-│   └── test_web.py
+│   ├── test_web.py
+│   └── test_telegram_bot.py
 ├── data/
 │   └── .gitkeep
 ├── AGENTS.md

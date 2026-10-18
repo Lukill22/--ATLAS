@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0
+
+- Nuevo bot de Telegram opcional (`src/atlas/telegram_bot.py`): deja capturar y consultar Atlas desde un chat, sin abrir ninguna app dedicada. Reusa exactamente la misma lógica que la terminal y la web (`save_entry`, `detect_entry_type`, `handle_command`, etc.), no duplica nada.
+- Usa "long polling" (el bot le pregunta a Telegram, no al revés): no necesita ningún servidor público ni configuración de red, a diferencia de WhatsApp/Messenger. Corre con el token en `ATLAS_TELEGRAM_TOKEN` (nunca versionado).
+- La confirmación de errores de tipeo y de borrado usan botones inline reales de Telegram, no texto.
+- `handle_command()` se movió de `web.py` a `main.py` para que la terminal, la web y el bot compartan la misma interpretación de comandos sin duplicarla.
+- No se agregó ninguna dependencia nueva: la API de Telegram se habla con `urllib` de la librería estándar.
+- 13 pruebas nuevas del bot (153 en total).
+
 ## 0.6.5
 
 - La respuesta de `ayuda` en la web ya no aparece desplegada de una: queda colapsada (`<details>`/`<summary>`, sin JavaScript) con un "Ver comandos disponibles" para abrirla cuando quieras. El resto de las respuestas (balance, listar, etc.) siguen abiertas, como antes.

@@ -150,8 +150,19 @@ El composer web ahora entiende los mismos comandos que la terminal (`ayuda`,
 `listar`, `balance`, `backup`, `recordar`/`que recordás`/`olvidar`, etc.), no
 solo capturas. Las secciones por tipo pasan de estar apiladas a ser pestañas
 (CSS puro, sin JavaScript). La respuesta de `ayuda` queda colapsada por
-defecto (`<details>`); el resto de las respuestas quedan abiertas. 140
-pruebas automatizadas en total.
+defecto (`<details>`); el resto de las respuestas quedan abiertas.
+
+### Sprint 6: bot de Telegram — terminado
+
+Atlas se puede usar desde un chat de Telegram (`src/atlas/telegram_bot.py`),
+sin abrir ninguna app dedicada — resuelve la fricción real de tener que
+cambiar de app para anotar algo. Se evaluaron Facebook Messenger y WhatsApp
+primero; se descartaron porque necesitan un servidor público expuesto a
+internet y cuenta de Meta Developer. Telegram no, porque consulta
+("polling") en vez de recibir llamadas. Reusa toda la lógica existente
+(`handle_command`, que se movió a `main.py` para compartirla entre
+terminal, web y bot); confirmaciones con botones inline reales; sin
+dependencias nuevas (`urllib`). 153 pruebas automatizadas en total.
 
 ## Funciones actuales
 
@@ -187,7 +198,8 @@ salir
 
 ### Futuro cercano
 
-- Probar Atlas con uso real, varios días (todo lo construido hasta ahora: terminal, web, memoria). No hay ninguna función nueva anotada: el próximo problema real todavía no apareció.
+- Probar Atlas con uso real, varios días (terminal, web, memoria, y ahora el bot de Telegram).
+- Correr el bot como servicio que arranque solo (hoy se arranca a mano), si el uso real lo justifica.
 
 ### Futuro medio
 

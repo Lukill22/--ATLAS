@@ -207,6 +207,32 @@ Versión mínima:
 - [x] Pruebas automatizadas de los comandos nuevos y de que cada registro aparece en la pestaña correcta.
 - [x] La respuesta de `ayuda` (larga) queda colapsada por defecto (`<details>`, sin JavaScript); el resto de las respuestas (balance, listar) siguen abiertas.
 
+## Sprint 6 — Bot de Telegram (terminado)
+
+Problema que resuelve: abrir una app dedicada (Termux, el navegador) cada
+vez que se quiere anotar algo es suficiente fricción como para no hacerlo.
+El problema real no era "botones vs. escribir" sino el costo de cambiar de
+app — hacía falta capturar desde una que ya se usa todo el día.
+
+Se evaluó Facebook Messenger y WhatsApp primero; ambos necesitan un
+servidor público expuesto a internet (webhook) y cuenta de Meta Developer.
+Telegram no: su bot consulta a Telegram ("long polling") en vez de que
+Telegram le avise a un servidor, así que no hace falta exponer nada a la
+red.
+
+Versión mínima:
+
+- [x] `src/atlas/telegram_bot.py`: reusa `save_entry`, `detect_entry_type`, `handle_command`, etc. — ninguna lógica nueva, solo un canal de entrada nuevo.
+- [x] Entiende captura (`gasto:`, `tarea:`, etc.), todos los comandos (`ayuda`, `listar`, `balance`, `backup`, `recordar`/`que recordás`/`olvidar`), y pide confirmación de typos y de borrado con botones inline reales.
+- [x] Sin dependencias nuevas: la API de Telegram se habla con `urllib` (librería estándar).
+- [x] Token en `ATLAS_TELEGRAM_TOKEN`, nunca versionado.
+- [x] `handle_command()` se extrajo de `web.py` a `main.py` para compartirla entre los tres canales (terminal, web, bot).
+- [x] Pruebas automatizadas mockeando el envío a Telegram.
+
+Fuera de alcance (a propósito): correrlo como servicio que arranque solo
+(systemd, Termux:Boot); por ahora se arranca a mano cuando se lo quiere
+usar. WhatsApp sigue descartado por la complejidad de Meta Developer.
+
 ---
 
 ## Futuro de Atlas
