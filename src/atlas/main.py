@@ -789,6 +789,53 @@ def format_balance_summary(resultado: dict) -> str:
     )
 
 
+# Comandos de una sola forma fija (sin parámetros variables como <id> o
+# [tipo]), para los que vale la pena tolerar errores de tipeo o palabras
+# de más (ej. "total de gatos" -> "total gastos"). Ejecutarlos directo sin
+# confirmar es seguro: son de solo lectura, o backup, que nunca destruye
+# nada.
+_FIXED_COMMANDS = [
+    "ayuda",
+    "total gastos",
+    "balance dia",
+    "balance mes",
+    "backup",
+    "que recordas",
+]
+
+# Palabras de relleno que se ignoran al comparar (así "total DE gatos"
+# compara como "total gatos").
+_COMMAND_STOPWORDS = {"de", "del", "la", "el", "los", "las", "un", "una"}
+
+# Más alto que _TYPO_SIMILARITY_CUTOFF porque acá se comparan frases
+# completas, no una sola palabra: con un umbral más bajo, "listar gastos"
+# termina pareciéndose a "total gastos" (comparten la palabra "gastos") y
+# se ejecutaría el comando equivocado. 0.75 evita esa confusión sin perder
+# los casos reales ("total de gatos", "balanse dia", "backp", "ayud").
+_COMMAND_SIMILARITY_CUTOFF = 0.75
+
+
+def _match_fixed_command(comando: str) -> str | None:
+    """Si comando se parece bastante a uno de los _FIXED_COMMANDS, lo
+    devuelve corregido. None si no se parece a ninguno, o si empieza con
+    "listar" (ese ya tiene su propio parser tolerante, no debe competir
+    con esto).
+    """
+
+    if comando.startswith("listar"):
+        return None
+
+    normalizado = " ".join(
+        palabra for palabra in comando.split() if palabra not in _COMMAND_STOPWORDS
+    )
+
+    cercanos = difflib.get_close_matches(
+        normalizado, _FIXED_COMMANDS, n=1, cutoff=_COMMAND_SIMILARITY_CUTOFF
+    )
+
+    return cercanos[0] if cercanos else None
+
+
 def handle_command(texto: str) -> dict | None:
     """Interpreta un comando de texto (ayuda, listar, balance, borrar,
     hecha, recordar/que recordás/olvidar, backup) fuera de la terminal:
@@ -898,6 +945,14 @@ def handle_command(texto: str) -> dict | None:
             for entry in reversed(entries)
         ]
         return {"respuesta": "\n".join(lineas)}
+
+    # Nada matcheó exacto. Probamos si se parece bastante a uno de los
+    # comandos fijos (ej. "total de gatos" -> "total gastos") antes de
+    # darnos por vencidos y tratarlo como una nota.
+    comando_corregido = _match_fixed_command(comando)
+
+    if comando_corregido is not None:
+        return handle_command(comando_corregido)
 
     return None
 

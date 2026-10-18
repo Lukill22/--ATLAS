@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2
+
+- `handle_command` ahora tolera errores de tipeo y palabras de más en los comandos fijos de solo lectura (`ayuda`, `total gastos`, `balance dia`/`mes`, `backup`, `que recordás`): por ejemplo "total de gatos" ya se reconoce como `total gastos`, en vez de guardarse como nota. Caso real reportado usando el bot.
+- No se confunde con `listar` (que tiene su propio parser): "listar gastos" nunca se interpreta como "total gastos", aunque comparten la palabra "gastos".
+- 8 pruebas nuevas (163 en total).
+
 ## 0.7.1
 
 - Se corrigió un bug real que tiraba abajo el bot de Telegram entero: un corte de conexión (`ConnectionResetError`) no estaba entre los errores que el loop sabe absorber. Ahora cualquier error de red (no solo timeout) se absorbe y reintenta, con una pequeña espera antes de reintentar.

@@ -24,6 +24,7 @@ from atlas.main import (
     find_entry,
     forget_fact,
     format_money,
+    handle_command,
     load_entries,
     load_memory,
     mark_task_done,
@@ -738,3 +739,52 @@ class TestMemoria:
             ruta_memoria.write_text("esto no es json", encoding="utf-8")
 
             assert load_memory() == {}
+
+
+class TestHandleCommandTypeado:
+    # Bug real: "total de gatos" (palabra de más + "gastos" mal escrito)
+    # no matcheaba "total gastos" exacto, y terminaba guardándose como
+    # nota sin que el usuario se enterara. handle_command ahora tolera
+    # esto para los comandos fijos de solo lectura (y backup).
+
+    def test_palabra_de_mas_y_typo(self):
+        with archivo_temporal():
+            resultado = handle_command("total de gatos")
+
+            assert "Gastaste" in resultado["respuesta"]
+
+    def test_typo_simple(self):
+        with archivo_temporal():
+            assert "Ingresos" in handle_command("balanse dia")["respuesta"]
+
+    def test_palabra_de_mas_sin_typo(self):
+        with archivo_temporal():
+            assert "Ingresos" in handle_command("balance de dia")["respuesta"]
+
+    def test_comando_corto_con_typo(self):
+        with archivo_temporal():
+            assert handle_command("ayud")["es_ayuda"] is True
+
+    def test_backup_con_typo(self):
+        with archivo_temporal():
+            resultado = handle_command("backp")
+
+            assert resultado == {
+                "respuesta": "Todavía no hay nada guardado para respaldar."
+            }
+
+    def test_no_confunde_listar_con_total(self):
+        # "listar gastos" comparte la palabra "gastos" con "total gastos",
+        # pero tiene su propio parser y no debe pasar por este atajo.
+        with archivo_temporal():
+            resultado = handle_command("listar gastos")
+
+            assert resultado["respuesta"] == "No encontré registros para ese filtro."
+
+    def test_listar_con_typo_no_se_confunde_con_total(self):
+        with archivo_temporal():
+            assert handle_command("listar gasto") is None
+
+    def test_texto_sin_relacion_sigue_devolviendo_none(self):
+        with archivo_temporal():
+            assert handle_command("se me ocurrió una idea para el finde") is None

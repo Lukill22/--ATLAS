@@ -163,9 +163,10 @@ internet y cuenta de Meta Developer. Telegram no, porque consulta
 (`handle_command`, que se movió a `main.py` para compartirla entre
 terminal, web y bot); confirmaciones con botones inline reales; sin
 dependencias nuevas (`urllib`). Probado en vivo con un bot real; se
-encontraron y corrigieron dos bugs (un corte de conexión tiraba abajo el
-proceso, y el `/start` automático se guardaba como nota). 155 pruebas
-automatizadas en total.
+encontraron y corrigieron tres bugs (un corte de conexión tiraba abajo el
+proceso, el `/start` automático se guardaba como nota, y "total de gatos"
+— typo + palabra de más — no se reconocía como `total gastos`). 163
+pruebas automatizadas en total.
 
 ## Funciones actuales
 
