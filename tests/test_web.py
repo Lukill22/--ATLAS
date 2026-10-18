@@ -56,6 +56,29 @@ class TestIndex:
             assert "mejorar atlas" in panel_idea
             assert "comprar arroz" not in panel_idea
 
+    def test_recordatorios_y_balance_diario_tienen_su_propia_pestana(self):
+        # Bug real: estos dos tipos se podían crear y listar (con "listar
+        # recordatorios" en el composer), pero no aparecían en ninguna
+        # pestaña del panel principal — quedaban invisibles ahí.
+        with archivo_temporal():
+            cliente().post(
+                "/agregar",
+                data={"texto": "recordatorio: 19/10 08:00 sacar la basura"},
+            )
+            cliente().post("/agregar", data={"texto": "balance diario: 23:00"})
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert 'class="tab-panel panel-recordatorio"' in html
+            assert 'class="tab-panel panel-balance_diario"' in html
+
+            panel_recordatorio = html.split('class="tab-panel panel-recordatorio"')[
+                1
+            ].split('class="tab-panel panel-balance_diario"')[0]
+
+            assert "sacar la basura" in panel_recordatorio
+            assert "23:00" not in panel_recordatorio
+
     def test_filtro_por_periodo(self):
         with archivo_temporal() as ruta:
             ruta.write_text(

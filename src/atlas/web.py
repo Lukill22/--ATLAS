@@ -65,6 +65,8 @@ _SECCIONES = [
     ("tarea", "Tareas"),
     ("idea", "Ideas"),
     ("nota", "Notas"),
+    ("recordatorio", "Recordatorios"),
+    ("balance_diario", "Balance diario"),
 ]
 
 _MAX_POR_SECCION = 10
