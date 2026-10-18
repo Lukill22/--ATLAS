@@ -73,6 +73,32 @@ en vez de sumar una segunda. Misma limitación que los recordatorios: solo
 el bot de Telegram puede avisar de verdad, y si no estaba corriendo a esa
 hora, avisa tarde en vez de perderlo.
 
+**Arranque automático (Windows, provisorio):** mientras Atlas no tiene un
+equipo propio siempre encendido (ver "Decisiones abiertas" en
+[docs/project-context.md](docs/project-context.md)), el bot puede arrancar
+solo al iniciar sesión en Windows, sin abrir ninguna terminal:
+
+1. Guardá el token una sola vez como variable de usuario (no hace falta
+   repetirlo nunca más, ni escribirlo en ningún archivo):
+   ```powershell
+   setx ATLAS_TELEGRAM_TOKEN "el-token-que-te-dio-botfather"
+   ```
+2. Registrá la tarea programada (una sola vez):
+   ```powershell
+   $raiz = "C:\ruta\a\--ATLAS"  # ajustar a tu ruta real
+   $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$raiz\scripts\iniciar_bot.ps1`"" -WorkingDirectory $raiz
+   $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+   $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+   Register-ScheduledTask -TaskName "Atlas - Bot de Telegram" -Action $action -Trigger $trigger -Settings $settings -Force
+   ```
+
+Corre oculto (sin ventana); el log queda en `logs/bot.log` (y
+`logs/bot.err.log` si algo falla). Sigue dependiendo de que la computadora
+esté encendida y con la sesión iniciada — no es un reemplazo de un equipo
+dedicado, solo evita tener que abrir una terminal cada vez.
+
+Para desactivarlo: `Unregister-ScheduledTask -TaskName "Atlas - Bot de Telegram" -Confirm:$false`.
+
 ## Cómo correr las pruebas
 
 ```bash
@@ -108,6 +134,8 @@ Atlas/
 │       └── templates/
 │           ├── index.html
 │           └── confirmar_borrado.html
+├── scripts/
+│   └── iniciar_bot.ps1
 ├── tests/
 │   ├── conftest.py
 │   ├── test_main.py

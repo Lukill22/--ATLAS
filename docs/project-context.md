@@ -236,7 +236,8 @@ salir
 ### Futuro cercano
 
 - Probar Atlas con uso real, varios días (terminal, web, memoria, y ahora el bot de Telegram).
-- Correr el bot como servicio que arranque solo (hoy se arranca a mano), si el uso real lo justifica.
+- Solución provisoria ya implementada: el bot arranca solo al iniciar sesión en Windows (Tarea Programada, oculta, ver README). Sigue dependiendo de que la computadora esté encendida; no reemplaza un equipo dedicado.
+- Correr el bot en un equipo propio siempre encendido (Raspberry Pi o laptop vieja, con Linux y systemd) sigue pendiente — la solución de Windows es un parche mientras tanto, no la solución final.
 
 ### Futuro medio
 
