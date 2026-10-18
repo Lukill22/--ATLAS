@@ -178,6 +178,20 @@ esa hora, avisa tarde en vez de perderlo. La terminal y la web pueden
 crear/listar recordatorios, pero no pueden sonar una alarma (limitación
 conocida). 176 pruebas automatizadas en total.
 
+### Sprint 8: balance diario automático — terminado
+
+Nuevo tipo de captura `balance diario: 23:00`, que configura un aviso
+automático todas las noches con el balance de hoy. Reusa el mismo cálculo
+que `balance dia`. A diferencia de un recordatorio (un evento puntual), es
+una configuración: una por chat, y volver a mandarlo con otra hora
+actualiza la existente en vez de duplicarla. Mismo mecanismo que los
+recordatorios — solo el bot de Telegram puede avisar de verdad, revisando
+en el mismo loop si ya llegó la hora y todavía no se mandó hoy; si no
+estaba corriendo a esa hora, avisa tarde en vez de perderlo. La terminal y
+la web pueden crear la configuración, pero no pueden avisar (misma
+limitación conocida que los recordatorios). 207 pruebas automatizadas en
+total.
+
 ## Funciones actuales
 
 ```text
@@ -186,6 +200,7 @@ ingreso: 100000 uber
 tarea: comprar arroz
 idea: crear módulo de estudio
 recordatorio: 19/10 08:00 sacar la basura
+balance diario: 23:00
 listar
 listar gastos
 listar ingresos

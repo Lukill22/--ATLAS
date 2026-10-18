@@ -24,11 +24,14 @@ from atlas.main import (
     find_entry,
     format_entry_summary,
     format_money,
+    get_due_daily_balances,
     get_due_reminders,
     handle_command,
     load_entries,
+    mark_daily_balance_sent,
     mark_reminder_notified,
     mark_task_done,
+    parse_daily_balance_config,
     parse_expense,
     parse_id_command,
     parse_income,
@@ -96,6 +99,9 @@ class TestDetectEntryType:
 
     def test_detecta_idea(self):
         assert detect_entry_type("idea: crear módulo de estudio") == "idea"
+
+    def test_detecta_balance_diario(self):
+        assert detect_entry_type("balance diario: 23:00") == "balance_diario"
 
     def test_texto_libre_es_nota(self):
         assert detect_entry_type("cualquier cosa") == "nota"
@@ -839,6 +845,182 @@ class TestFormatEntrySummaryRecordatorio:
         )
 
 
+class TestParseDailyBalanceConfig:
+    def test_formato_valido(self):
+        assert parse_daily_balance_config("balance diario: 23:00") == "23:00"
+
+    def test_no_distingue_mayusculas_en_el_prefijo(self):
+        assert parse_daily_balance_config("Balance diario: 23:00") == "23:00"
+
+    def test_normaliza_hora_de_un_solo_digito(self):
+        assert parse_daily_balance_config("balance diario: 9:05") == "09:05"
+
+    def test_hora_invalida_devuelve_none(self):
+        assert parse_daily_balance_config("balance diario: 25:00") is None
+
+    def test_minuto_invalido_devuelve_none(self):
+        assert parse_daily_balance_config("balance diario: 10:60") is None
+
+    def test_sin_prefijo_devuelve_none(self):
+        assert parse_daily_balance_config("23:00") is None
+
+    def test_sin_contenido_devuelve_none(self):
+        assert parse_daily_balance_config("balance diario:") is None
+
+    def test_formato_de_hora_invalido_devuelve_none(self):
+        assert parse_daily_balance_config("balance diario: a las 23") is None
+
+
+class TestGuardarBalanceDiario:
+    def test_crea_la_configuracion_con_chat_id(self):
+        with archivo_temporal():
+            entry = save_entry("balance_diario", "balance diario: 23:00", chat_id=123)
+
+            assert entry["chat_id"] == 123
+            assert entry["hora"] == "23:00"
+            assert entry["last_sent_date"] is None
+
+    def test_sin_chat_id_no_guarda_esa_clave(self):
+        with archivo_temporal():
+            entry = save_entry("balance_diario", "balance diario: 23:00")
+
+            assert "chat_id" not in entry
+
+    def test_formato_invalido_lanza_error_y_no_guarda(self):
+        with archivo_temporal() as ruta:
+            with pytest.raises(ValueError):
+                save_entry("balance_diario", "balance diario: mas o menos a la noche")
+
+            assert not ruta.exists()
+
+    def test_configurar_de_nuevo_actualiza_en_vez_de_duplicar(self):
+        # Volver a mandar "balance diario: ..." con otra hora actualiza la
+        # configuración existente del mismo chat, no suma una segunda (si
+        # no, se mandaría el balance dos veces por noche).
+        with archivo_temporal():
+            primera = save_entry("balance_diario", "balance diario: 23:00", chat_id=123)
+            segunda = save_entry("balance_diario", "balance diario: 22:30", chat_id=123)
+
+            entradas = load_entries()
+            assert len(entradas) == 1
+            assert primera["id"] == segunda["id"]
+            assert entradas[0]["hora"] == "22:30"
+
+    def test_chats_distintos_no_se_pisan(self):
+        with archivo_temporal():
+            save_entry("balance_diario", "balance diario: 23:00", chat_id=1)
+            save_entry("balance_diario", "balance diario: 20:00", chat_id=2)
+
+            assert len(load_entries()) == 2
+
+    def test_reconfigurar_reinicia_last_sent_date(self):
+        # Si ya se había mandado hoy y el usuario cambia la hora más tarde
+        # en el día, tiene que poder volver a mandarse a la nueva hora.
+        with archivo_temporal():
+            entry = save_entry("balance_diario", "balance diario: 10:00", chat_id=123)
+            mark_daily_balance_sent(entry["id"], date.today().isoformat())
+
+            save_entry("balance_diario", "balance diario: 23:00", chat_id=123)
+
+            assert load_entries()[0]["last_sent_date"] is None
+
+
+class TestGetDueDailyBalances:
+    AHORA = datetime(2026, 10, 19, 23, 0)
+
+    def test_hora_pasada_y_no_enviado_hoy_aparece(self):
+        entries = [
+            {
+                "id": 1,
+                "type": "balance_diario",
+                "hora": "22:59",
+                "last_sent_date": None,
+            }
+        ]
+
+        assert get_due_daily_balances(entries, self.AHORA) == entries
+
+    def test_hora_todavia_no_llega_no_aparece(self):
+        entries = [
+            {
+                "id": 1,
+                "type": "balance_diario",
+                "hora": "23:01",
+                "last_sent_date": None,
+            }
+        ]
+
+        assert get_due_daily_balances(entries, self.AHORA) == []
+
+    def test_ya_enviado_hoy_no_aparece_de_nuevo(self):
+        entries = [
+            {
+                "id": 1,
+                "type": "balance_diario",
+                "hora": "22:00",
+                "last_sent_date": self.AHORA.date().isoformat(),
+            }
+        ]
+
+        assert get_due_daily_balances(entries, self.AHORA) == []
+
+    def test_enviado_un_dia_distinto_vuelve_a_aparecer(self):
+        entries = [
+            {
+                "id": 1,
+                "type": "balance_diario",
+                "hora": "22:00",
+                "last_sent_date": "2026-10-18",
+            }
+        ]
+
+        assert get_due_daily_balances(entries, self.AHORA) == entries
+
+    def test_ignora_otros_tipos(self):
+        entries = [{"id": 1, "type": "recordatorio", "due_at": "2026-10-19T08:00"}]
+
+        assert get_due_daily_balances(entries, self.AHORA) == []
+
+
+class TestMarkDailyBalanceSent:
+    def test_marca_la_fecha(self):
+        with archivo_temporal():
+            entry = save_entry("balance_diario", "balance diario: 23:00", chat_id=123)
+
+            assert mark_daily_balance_sent(entry["id"], "2026-10-19") is True
+            assert load_entries()[0]["last_sent_date"] == "2026-10-19"
+
+    def test_id_inexistente_devuelve_false(self):
+        with archivo_temporal():
+            assert mark_daily_balance_sent(999, "2026-10-19") is False
+
+    def test_no_es_balance_diario_devuelve_false(self):
+        with archivo_temporal():
+            entry = save_entry("gasto", "gasto: 5000 pan")
+
+            assert mark_daily_balance_sent(entry["id"], "2026-10-19") is False
+
+
+class TestFormatEntrySummaryBalanceDiario:
+    def test_pendiente_muestra_reloj(self):
+        entry = {
+            "type": "balance_diario",
+            "hora": "23:00",
+            "last_sent_date": None,
+        }
+
+        assert format_entry_summary(entry) == "⏰ pendiente [balance diario] 23:00"
+
+    def test_enviado_hoy_muestra_check(self):
+        entry = {
+            "type": "balance_diario",
+            "hora": "23:00",
+            "last_sent_date": date.today().isoformat(),
+        }
+
+        assert format_entry_summary(entry) == "✅ enviado hoy [balance diario] 23:00"
+
+
 class TestHandleCommandTypeado:
     # Bug real: "total de gatos" (palabra de más + "gastos" mal escrito)
     # no matcheaba "total gastos" exacto, y terminaba guardándose como
@@ -870,6 +1052,13 @@ class TestHandleCommandTypeado:
             assert resultado == {
                 "respuesta": "Todavía no hay nada guardado para respaldar."
             }
+
+    def test_balance_diario_no_se_confunde_con_balance_dia(self):
+        # "balance diario: 23:00" es una captura (configurar el aviso
+        # automático), no el comando "balance dia": handle_command no debe
+        # tratarlo como un typo de ese comando fijo.
+        with archivo_temporal():
+            assert handle_command("balance diario: 23:00") is None
 
     def test_dos_puntos_de_mas_en_comando_fijo(self):
         # Mismo bug real que "listar gastos:", pero en un comando fijo:

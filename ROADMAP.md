@@ -265,6 +265,28 @@ Versión mínima:
 Fuera de alcance (a propósito): recordatorios repetitivos (todos los días,
 cada semana), avisar por web/terminal de alguna forma.
 
+## Sprint 8 — Balance diario automático (terminado)
+
+Problema que resuelve: después de usar los recordatorios, surgió un pedido
+natural parecido pero distinto — no un evento puntual, sino un aviso que se
+repite todas las noches con el balance de hoy, sin tener que pedirlo. Los
+recordatorios (Sprint 7) explícitamente dejaron "recordatorios repetitivos"
+fuera de alcance; esto no generaliza esa idea, resuelve un caso puntual y
+acotado (balance, una vez por día) con su propio mecanismo más simple.
+
+Versión mínima:
+
+- [x] `balance diario: 23:00`: nuevo tipo de captura que configura la hora del aviso automático.
+- [x] Se guarda en `entries.jsonl` como un registro más, pero es una configuración (una por chat): volver a mandarlo con otra hora actualiza el registro existente en vez de duplicarlo.
+- [x] Solo el bot de Telegram puede avisar de verdad: en el mismo loop que ya revisa mensajes y recordatorios, también revisa si ya llegó la hora y todavía no se mandó hoy. Si el bot no estaba corriendo a esa hora, avisa tarde en vez de perderlo.
+- [x] La terminal y la web pueden crear la configuración, pero no pueden avisar (misma limitación conocida que los recordatorios).
+- [x] Reusa `calculate_balance`/`format_balance_summary`, ya usados por `balance dia`.
+- [x] Pruebas automatizadas (parseo de hora, actualización en vez de duplicado, detección de "ya toca avisar", aviso con y sin chat_id).
+
+Fuera de alcance (a propósito): elegir qué incluye el mensaje (hoy es
+siempre "balance de hoy", igual que `balance dia`), otros avisos repetitivos
+de propósito general, horarios distintos por día de la semana.
+
 ---
 
 ## Futuro de Atlas

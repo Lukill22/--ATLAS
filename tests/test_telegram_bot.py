@@ -250,3 +250,52 @@ class TestRecordatorios:
 
             enviar.assert_not_called()
             assert load_entries()[0]["notified"] is True
+
+
+class TestBalanceDiario:
+    def test_configurarlo_guarda_el_chat_id_y_confirma_la_hora(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            bot.process_text(123, "balance diario: 23:00")
+
+            entry = load_entries()[0]
+            assert entry["type"] == "balance_diario"
+            assert entry["chat_id"] == 123
+            assert "23:00" in enviar.call_args[0][1]
+
+    def test_avisar_balances_diarios_manda_el_mensaje(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            save_entry("gasto", "gasto: 5000 pan")
+            save_entry("balance_diario", "balance diario: 23:00", chat_id=123)
+
+            with patch.object(bot, "datetime") as fecha_falsa:
+                fecha_falsa.now.return_value = datetime(2026, 10, 19, 23, 1)
+                bot.avisar_balances_diarios()
+
+            chat_id, texto = enviar.call_args[0]
+            assert chat_id == 123
+            assert "Balance de hoy" in texto
+            assert load_entries()[1]["last_sent_date"] == "2026-10-19"
+
+    def test_no_llego_la_hora_todavia_no_avisa(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            save_entry("balance_diario", "balance diario: 23:00", chat_id=123)
+
+            with patch.object(bot, "datetime") as fecha_falsa:
+                fecha_falsa.now.return_value = datetime(2026, 10, 19, 22, 59)
+                bot.avisar_balances_diarios()
+
+            enviar.assert_not_called()
+            assert load_entries()[0]["last_sent_date"] is None
+
+    def test_sin_chat_id_se_marca_enviado_sin_mandar_nada(self):
+        # Creado desde la terminal o la web: nadie a quien avisarle, pero
+        # tampoco hay que seguir revisándolo cada noche para siempre.
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            save_entry("balance_diario", "balance diario: 23:00")
+
+            with patch.object(bot, "datetime") as fecha_falsa:
+                fecha_falsa.now.return_value = datetime(2026, 10, 19, 23, 1)
+                bot.avisar_balances_diarios()
+
+            enviar.assert_not_called()
+            assert load_entries()[0]["last_sent_date"] == "2026-10-19"

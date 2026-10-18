@@ -130,6 +130,38 @@ def parse_reminder(text: str) -> dict | None:
     }
 
 
+# "23:00" (hora y minuto con 2 dígitos). Formato fijo, igual que el resto
+# de Atlas: no intenta adivinar "a las 11 de la noche" ni variantes así.
+_DAILY_BALANCE_PATTERN = re.compile(r"^(\d{1,2}):(\d{2})$")
+
+
+def parse_daily_balance_config(text: str) -> str | None:
+    """Extrae la hora desde un texto de configuración de balance diario.
+
+    Formato esperado:
+    balance diario: 23:00
+
+    Devuelve la hora normalizada ("23:00"), o None si no matchea o la hora
+    no es válida (ej. "25:00").
+    """
+
+    if not text.lower().startswith("balance diario:"):
+        return None
+
+    content = text[len("balance diario:") :].strip()
+    match = _DAILY_BALANCE_PATTERN.match(content)
+
+    if match is None:
+        return None
+
+    hora, minuto = match.groups()
+
+    if not (0 <= int(hora) <= 23 and 0 <= int(minuto) <= 59):
+        return None
+
+    return f"{int(hora):02d}:{minuto}"
+
+
 def _next_id(entries: list[dict]) -> int:
     """Calcula el próximo id disponible a partir de los ids existentes.
 
@@ -221,11 +253,21 @@ def create_backup() -> Path | None:
 def save_entry(entry_type: str, text: str, chat_id: int | None = None) -> dict:
     """Crea y guarda un registro nuevo.
 
-    chat_id identifica a quién avisarle si entry_type es "recordatorio"
-    (solo el bot de Telegram puede avisar de verdad; la terminal y la web
-    lo pasan en None, así que ese recordatorio queda sin nadie a quien
-    avisar, pero se puede seguir listando).
+    chat_id identifica a quién avisarle si entry_type es "recordatorio" o
+    "balance_diario" (solo el bot de Telegram puede avisar de verdad; la
+    terminal y la web lo pasan en None, así que ese recordatorio o balance
+    diario queda sin nadie a quien avisar, pero se puede seguir listando).
     """
+
+    if entry_type == "balance_diario":
+        hora = parse_daily_balance_config(text)
+
+        if hora is None:
+            raise ValueError(
+                "No pude detectar la hora. Usá este formato: balance diario: 23:00"
+            )
+
+        return set_daily_balance_config(hora, chat_id)
 
     entry = {
         "id": _next_id(load_entries()),
@@ -418,6 +460,108 @@ def mark_reminder_notified(entry_id: int) -> bool:
     return False
 
 
+def set_daily_balance_config(hora: str, chat_id: int | None) -> dict:
+    """Crea o actualiza la configuración de balance diario automático.
+
+    Solo tiene sentido una por chat: configurarla de nuevo con otra hora
+    actualiza la que ya existía (y reinicia "last_sent_date") en vez de
+    sumar una segunda, lo que mandaría el balance dos veces por noche.
+    """
+
+    lines = _read_lines()
+
+    for index, line in enumerate(lines):
+        entry = _parse_line(line)
+
+        if (
+            entry is not None
+            and entry.get("type") == "balance_diario"
+            and entry.get("chat_id") == chat_id
+        ):
+            entry["hora"] = hora
+            entry["last_sent_date"] = None
+            lines[index] = json.dumps(entry, ensure_ascii=False)
+            _write_lines(lines)
+
+            return entry
+
+    entry = {
+        "id": _next_id(load_entries()),
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "type": "balance_diario",
+        "text": f"balance diario: {hora}",
+        "hora": hora,
+        "last_sent_date": None,
+    }
+
+    if chat_id is not None:
+        entry["chat_id"] = chat_id
+
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    with DATA_FILE.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    return entry
+
+
+def get_due_daily_balances(entries: list[dict], ahora: datetime) -> list[dict]:
+    """Devuelve las configuraciones de balance diario a las que ya les toca
+    avisar: la hora configurada ya pasó hoy y todavía no se mandó hoy.
+    Función pura, para poder probarla con una fecha fija.
+    """
+
+    pendientes = []
+    hoy = ahora.date().isoformat()
+
+    for entry in entries:
+        if entry.get("type") != "balance_diario":
+            continue
+
+        if entry.get("last_sent_date") == hoy:
+            continue
+
+        hora_texto = entry.get("hora")
+
+        if not hora_texto:
+            continue
+
+        try:
+            hora_objetivo = datetime.strptime(hora_texto, "%H:%M").time()
+        except ValueError:
+            continue
+
+        if ahora.time() >= hora_objetivo:
+            pendientes.append(entry)
+
+    return pendientes
+
+
+def mark_daily_balance_sent(entry_id: int, fecha: str) -> bool:
+    """Marca un balance diario como ya enviado hoy (fecha ISO). True si lo
+    encontró.
+    """
+
+    lines = _read_lines()
+
+    for index, line in enumerate(lines):
+        entry = _parse_line(line)
+
+        if entry is None or entry.get("id") != entry_id:
+            continue
+
+        if entry.get("type") != "balance_diario":
+            return False
+
+        entry["last_sent_date"] = fecha
+        lines[index] = json.dumps(entry, ensure_ascii=False)
+        _write_lines(lines)
+
+        return True
+
+    return False
+
+
 def parse_id_command(command: str, keyword: str) -> int | None:
     """Extrae un id numérico de un comando tipo "borrar 3".
 
@@ -457,6 +601,9 @@ def detect_entry_type(text: str) -> str:
 
     if lowered_text.startswith("recordatorio:"):
         return "recordatorio"
+
+    if lowered_text.startswith("balance diario:"):
+        return "balance_diario"
 
     return "nota"
 
@@ -642,6 +789,11 @@ def format_entry_summary(entry: dict) -> str:
         descripcion = entry.get("description", text)
         return f"{estado} [recordatorio] {fecha_legible} - {descripcion}"
 
+    if category == "balance_diario" and "hora" in entry:
+        enviado_hoy = entry.get("last_sent_date") == date.today().isoformat()
+        estado = "✅ enviado hoy" if enviado_hoy else "⏰ pendiente"
+        return f"{estado} [balance diario] {entry['hora']}"
+
     return f"[{category}] {text}"
 
 
@@ -786,6 +938,7 @@ HELP_TEXT = """Comandos disponibles:
   backup
 
   recordatorio: 19/10 08:00 sacar la basura
+  balance diario: 23:00
 
   ayuda
   salir"""
@@ -854,11 +1007,12 @@ _COMMAND_SIMILARITY_CUTOFF = 0.75
 def _match_fixed_command(comando: str) -> str | None:
     """Si comando se parece bastante a uno de los _FIXED_COMMANDS, lo
     devuelve corregido. None si no se parece a ninguno, o si empieza con
-    "listar" (ese ya tiene su propio parser tolerante, no debe competir
-    con esto).
+    "listar" o "balance diario" (esos ya tienen su propia captura/parser,
+    no deben competir con esto: "balance diario: 23:00" comparte la
+    palabra "balance" con "balance dia"/"balance mes").
     """
 
-    if comando.startswith("listar"):
+    if comando.startswith("listar") or comando.startswith("balance diario"):
         return None
 
     normalizado = " ".join(

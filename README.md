@@ -66,6 +66,13 @@ avisarte de verdad** (revisa recordatorios vencidos mientras está corriendo)
 sonar una alarma. Si el bot no estaba corriendo a esa hora, te avisa tarde
 en vez de perderlo.
 
+**Balance diario automático:** `balance diario: 23:00` configura un aviso
+con el balance de hoy, todas las noches a esa hora. Es una configuración
+(una por chat): mandarlo de nuevo con otra hora actualiza la que ya había
+en vez de sumar una segunda. Misma limitación que los recordatorios: solo
+el bot de Telegram puede avisar de verdad, y si no estaba corriendo a esa
+hora, avisa tarde en vez de perderlo.
+
 ## Cómo correr las pruebas
 
 ```bash

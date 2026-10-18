@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- Nuevo tipo de captura: `balance diario: 23:00` — configura un aviso automático con el balance de hoy, todas las noches a esa hora. Reusa `calculate_balance`/`format_balance_summary`, los mismos que ya usa `balance dia`.
+- Se guarda en `entries.jsonl` como un registro más (`balance_diario`), pero es una **configuración**, no un historial: volver a mandarlo con otra hora actualiza el registro existente de ese chat en vez de sumar uno nuevo (si no, mandaría el balance dos veces por noche).
+- **Solo el bot de Telegram puede avisar de verdad**, igual que los recordatorios: en el mismo loop que ya revisa mensajes y recordatorios vencidos (cada ~30 segundos), ahora también revisa si ya llegó la hora configurada y todavía no se mandó hoy. Si el bot no estaba corriendo a esa hora, lo manda tarde en vez de perderlo.
+- La terminal y la web pueden crear la configuración, pero no tienen forma de avisar en el momento exacto — misma limitación conocida que los recordatorios.
+- 31 pruebas nuevas (207 en total).
+
 ## 0.8.0
 
 - Se sacó la memoria (`recordar`/`que recordás`/`olvidar`): nunca se usó en la práctica, y lo que el usuario quería de verdad era otra cosa — un recordatorio con alarma, no un dato fijo para consultar.

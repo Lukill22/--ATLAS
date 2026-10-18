@@ -26,7 +26,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -34,14 +34,18 @@ if __package__ in (None, ""):
 
 from atlas.main import (  # noqa: E402
     build_corrected_text,
+    calculate_balance,
     delete_entry,
     detect_entry_type,
     detect_probable_typo,
     find_entry,
+    format_balance_summary,
     format_entry_summary,
+    get_due_daily_balances,
     get_due_reminders,
     handle_command,
     load_entries,
+    mark_daily_balance_sent,
     mark_reminder_notified,
     save_entry,
 )
@@ -105,10 +109,18 @@ def _answer_callback(callback_query_id: str) -> None:
 
 def _guardar_y_avisar(chat_id: int, entry_type: str, texto: str) -> None:
     try:
-        # chat_id siempre se guarda, aunque solo lo use "recordatorio": es
-        # el único tipo que necesita saber a quién avisarle después.
-        save_entry(entry_type, texto, chat_id=chat_id)
-        send_message(chat_id, f"Guardado como {entry_type}.")
+        # chat_id siempre se guarda, aunque solo lo usen "recordatorio" y
+        # "balance_diario": son los únicos tipos que necesitan saber a
+        # quién avisarle después.
+        entry = save_entry(entry_type, texto, chat_id=chat_id)
+
+        if entry_type == "balance_diario":
+            send_message(
+                chat_id,
+                f"Listo, te mando el balance todos los días a las {entry['hora']}.",
+            )
+        else:
+            send_message(chat_id, f"Guardado como {entry_type}.")
 
     except ValueError as error:
         send_message(chat_id, str(error))
@@ -239,6 +251,28 @@ def avisar_recordatorios_vencidos() -> None:
         mark_reminder_notified(entry["id"])
 
 
+def avisar_balances_diarios() -> None:
+    """Revisa si hay algún balance diario automático pendiente de hoy y,
+    si hay, lo manda. Mismo mecanismo que avisar_recordatorios_vencidos():
+    se llama una vez por vuelta del loop de polling.
+    """
+
+    ahora = datetime.now()
+    hoy = ahora.date().isoformat()
+
+    for entry in get_due_daily_balances(load_entries(), ahora):
+        chat_id = entry.get("chat_id")
+
+        if chat_id is not None:
+            balance = calculate_balance(load_entries(), date.today())
+            send_message(chat_id, f"Balance de hoy:\n{format_balance_summary(balance)}")
+
+        # Igual que con los recordatorios: se marca enviado aunque no haya
+        # chat_id (creado desde la terminal o la web), para no seguir
+        # revisándolo en cada vuelta del loop para siempre.
+        mark_daily_balance_sent(entry["id"], hoy)
+
+
 def run() -> None:
     """Arranca el loop de polling. Bloquea hasta Ctrl+C."""
 
@@ -292,6 +326,12 @@ def run() -> None:
 
         except Exception as error:  # noqa: BLE001 - no tirar abajo el bot
             print(f"Atlas: error revisando recordatorios ({error}); sigo.")
+
+        try:
+            avisar_balances_diarios()
+
+        except Exception as error:  # noqa: BLE001 - no tirar abajo el bot
+            print(f"Atlas: error revisando el balance diario ({error}); sigo.")
 
 
 if __name__ == "__main__":

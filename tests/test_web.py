@@ -260,6 +260,17 @@ class TestComandosEnElComposer:
             # Creado desde la web, sin chat_id: no hay a quien avisarle.
             assert "chat_id" not in load_entries()[0]
 
+    def test_crear_balance_diario_y_listarlo(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "balance diario: 23:00"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "listar"})
+
+            assert b"23:00" in respuesta.data
+            assert load_entries()[0]["type"] == "balance_diario"
+            # Creado desde la web, sin chat_id: no hay a quien avisarle.
+            assert "chat_id" not in load_entries()[0]
+
     def test_listar_tareas(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
