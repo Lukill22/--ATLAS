@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0
+
+- Las pestañas por tipo de la web ahora incluyen Recordatorios y Balance diario (se podían crear y listar por el composer, pero no aparecían en ninguna pestaña desde que se agregaron).
+- Rediseño visual de la web: cada tipo tiene su propio color de acento (antes todo era el mismo celeste genérico), una marca simple arriba, y el resumen de balance pasó de texto plano a chips.
+- A pedido: los registros de cada pestaña ya no se muestran directamente al entrar — quedan detrás de "Ver registros" (desplegable, se puede volver a colapsar).
+- El resumen ahora también muestra el chip "Siempre" (balance de toda la vida), que se había quedado afuera cuando se agregó el comando `balance total`.
+- Se corrigió el mensaje "Guardado como balance_diario." (mostraba el nombre interno con el guion bajo); ahora dice "Guardado como balance diario."
+- Solución provisoria para no depender de abrir una terminal cada vez: el bot puede arrancar solo al iniciar sesión en Windows (Tarea Programada, oculto, con reintento si se cae). El token nunca se escribe en ningún archivo — se persiste como variable de entorno de usuario (`setx`). Ver README.
+- 4 pruebas nuevas (222 en total).
+
 ## 0.10.0
 
 - Nuevo comando `total ingresos`, simétrico a `total gastos` (antes solo existía para gastos, sin una forma directa de preguntar "¿cuánto ingresé?").

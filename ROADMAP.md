@@ -301,6 +301,30 @@ Versión mínima:
 - [x] Disponible en los tres canales (terminal, web, bot), con la misma tolerancia a typos que el resto de los comandos fijos.
 - [x] Pruebas automatizadas.
 
+## Sprint 10 — Ajustes de uso real en la web, y arranque sin depender de la terminal (terminado)
+
+Problema que resuelve: usando la web de nuevo con los tipos agregados en
+los Sprints 7-9, aparecieron olvidos reales — recordatorios y balance
+diario no tenían pestaña propia, el resumen no mostraba el balance total
+nuevo, un mensaje mostraba el nombre interno de un tipo con guion bajo. Y
+por separado: pedido explícito de dejar de abrir una terminal a mano cada
+vez que se quiere usar el bot, y de que la interfaz se sienta menos
+genérica.
+
+Versión mínima:
+
+- [x] Pestañas de Recordatorios y Balance diario en la web (antes invisibles fuera de `listar`).
+- [x] Rediseño visual: color de acento por tipo, marca simple, resumen como chips en vez de texto plano.
+- [x] Los registros de cada pestaña quedan colapsados detrás de "Ver registros" en vez de mostrarse directo.
+- [x] Chip "Siempre" (balance total) en el resumen, que se había quedado afuera del Sprint 9.
+- [x] Corregido el mensaje "Guardado como balance_diario." (guion bajo visible).
+- [x] El bot puede arrancar solo al iniciar sesión en Windows (Tarea Programada oculta, con reintento), sin escribir el token en ningún archivo.
+- [x] Pruebas automatizadas para los cambios de la web.
+
+Fuera de alcance (a propósito): equipo dedicado siempre encendido
+(Raspberry Pi/laptop vieja, sigue pendiente — esto es un parche
+mientras tanto), autenticación/login para la web.
+
 ---
 
 ## Futuro de Atlas

@@ -199,6 +199,20 @@ total` (ingresos, gastos y balance sin filtrar por fecha, a diferencia de
 `balance dia`/`balance mes`). Reusan la lógica existente, disponibles en
 los tres canales. 218 pruebas automatizadas en total.
 
+### Sprint 10: ajustes de uso real en la web, y arranque sin terminal — terminado
+
+Usando la web de nuevo aparecieron olvidos reales de los Sprints 7-9:
+recordatorios y balance diario sin pestaña propia, el resumen sin el
+balance total nuevo, un mensaje con el nombre interno de un tipo
+(`balance_diario`) a la vista. Se corrigieron los tres. Además, a pedido
+explícito: rediseño visual (color por tipo en vez de un celeste genérico,
+resumen como chips) y listas colapsables por pestaña (los registros ya no
+se muestran directo, hay que desplegar "Ver registros"). Por separado, el
+bot puede arrancar solo al iniciar sesión en Windows (Tarea Programada
+oculta, con reintento), sin depender de abrir una terminal a mano — una
+solución provisoria mientras sigue pendiente un equipo dedicado siempre
+encendido. 222 pruebas automatizadas en total.
+
 ## Funciones actuales
 
 ```text
