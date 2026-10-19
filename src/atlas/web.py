@@ -38,6 +38,7 @@ from atlas.main import (  # noqa: E402
     build_corrected_text,
     calculate_balance,
     calculate_monthly_balance,
+    calculate_total_balance,
     delete_entry,
     detect_entry_type,
     detect_probable_typo,
@@ -115,6 +116,7 @@ def _render_index(pendiente=None, respuesta=None, respuesta_es_ayuda=False):
         respuesta_es_ayuda=respuesta_es_ayuda,
         balance_hoy=calculate_balance(load_entries(), date.today()),
         balance_mes=calculate_monthly_balance(load_entries(), date.today()),
+        balance_total=calculate_total_balance(load_entries()),
         format_money=format_money,
         format_entry_summary=format_entry_summary,
     )

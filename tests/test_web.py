@@ -33,6 +33,22 @@ class TestIndex:
             assert b"pan" in respuesta.data
             assert "$5.000".encode("utf-8") in respuesta.data
 
+    def test_el_resumen_incluye_el_balance_de_toda_la_vida(self):
+        # balance_hoy/balance_mes ya existían y no muestran un ingreso
+        # viejo; el chip "Siempre" (balance_total) sí, porque no filtra
+        # por fecha.
+        with archivo_temporal() as ruta:
+            ruta.write_text(
+                '{"id": 1, "created_at": "2020-01-01T10:00:00", "type": '
+                '"ingreso", "amount": 100000, "text": "ingreso: 100000 uber"}\n',
+                encoding="utf-8",
+            )
+
+            respuesta = cliente().get("/")
+
+            assert b"Siempre" in respuesta.data
+            assert "$100.000".encode("utf-8") in respuesta.data
+
     def test_las_secciones_estan_divididas_por_tipo(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})

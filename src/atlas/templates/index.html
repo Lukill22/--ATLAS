@@ -270,6 +270,10 @@
       <div class="etiqueta">Este mes</div>
       <div class="valor {{ 'negativo' if balance_mes.balance < 0 else '' }}">{{ format_money(balance_mes.balance) }}</div>
     </div>
+    <div class="chip">
+      <div class="etiqueta">Siempre</div>
+      <div class="valor {{ 'negativo' if balance_total.balance < 0 else '' }}">{{ format_money(balance_total.balance) }}</div>
+    </div>
   </div>
 
   <div class="periodo">
