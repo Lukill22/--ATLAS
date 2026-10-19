@@ -327,6 +327,19 @@ class TestComandosEnElComposer:
             # Creado desde la web, sin chat_id: no hay a quien avisarle.
             assert "chat_id" not in load_entries()[0]
 
+    def test_balance_diario_mensaje_flash_sin_guion_bajo(self):
+        # "balance_diario" es el nombre interno del tipo; el mensaje de
+        # confirmación no debe mostrarlo tal cual, con el "_" de más.
+        with archivo_temporal():
+            respuesta = cliente().post(
+                "/agregar",
+                data={"texto": "balance diario: 23:00"},
+                follow_redirects=True,
+            )
+
+            assert b"Guardado como balance diario." in respuesta.data
+            assert b"balance_diario." not in respuesta.data
+
     def test_listar_tareas(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
