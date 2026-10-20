@@ -267,6 +267,10 @@
       <div class="valor {{ 'negativo' if balance_hoy.balance < 0 else '' }}">{{ format_money(balance_hoy.balance) }}</div>
     </div>
     <div class="chip">
+      <div class="etiqueta">Esta semana</div>
+      <div class="valor {{ 'negativo' if balance_semana.balance < 0 else '' }}">{{ format_money(balance_semana.balance) }}</div>
+    </div>
+    <div class="chip">
       <div class="etiqueta">Este mes</div>
       <div class="valor {{ 'negativo' if balance_mes.balance < 0 else '' }}">{{ format_money(balance_mes.balance) }}</div>
     </div>

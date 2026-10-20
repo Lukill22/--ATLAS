@@ -5,7 +5,7 @@ E/S con lógica; eso queda para cuando valga la pena separarlo.
 """
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -17,6 +17,7 @@ from atlas.main import (
     calculate_balance,
     calculate_monthly_balance,
     calculate_total_balance,
+    calculate_weekly_balance,
     calculate_total_income,
     create_backup,
     delete_entry,
@@ -87,6 +88,23 @@ class TestParseExpense:
 
     def test_texto_sin_prefijo_se_rechaza(self):
         assert parse_expense("nafta 15000") is None
+
+    def test_orden_invertido_descripcion_antes_del_monto(self):
+        # Caso real repetido: se escribe primero de qué es el gasto y
+        # después cuánto fue, como se habla en la vida real.
+        assert parse_expense("gasto: nafta 12000") == {
+            "amount": 12000,
+            "description": "nafta",
+        }
+
+    def test_orden_invertido_con_descripcion_de_varias_palabras(self):
+        assert parse_expense("gasto: en el supermercado 5000") == {
+            "amount": 5000,
+            "description": "en el supermercado",
+        }
+
+    def test_orden_invertido_ninguno_de_los_dos_extremos_es_monto_se_rechaza(self):
+        assert parse_expense("gasto: nafta en el auto") is None
 
 
 class TestDetectEntryType:
@@ -217,6 +235,24 @@ class TestParseListCommand:
     def test_dos_puntos_de_mas_despues_de_listar_solo(self):
         assert parse_list_command("listar:") == {"entry_type": None, "period": None}
 
+    def test_tipo_en_singular(self):
+        # Caso real repetido: "listar tarea"/"listar gasto" en singular no
+        # se reconocían, y terminaban guardados como nota.
+        assert parse_list_command("listar tarea") == {
+            "entry_type": "tarea",
+            "period": None,
+        }
+        assert parse_list_command("listar gasto") == {
+            "entry_type": "gasto",
+            "period": None,
+        }
+
+    def test_tipo_en_singular_con_periodo(self):
+        assert parse_list_command("listar idea hoy") == {
+            "entry_type": "idea",
+            "period": "hoy",
+        }
+
 
 class TestFilterByPeriod:
     HOY = "2026-10-11T10:00:00"
@@ -283,6 +319,12 @@ class TestParseIncome:
 
     def test_monto_ambiguo_tipo_decimal_se_rechaza(self):
         assert parse_income("ingreso: 15.5 propina") is None
+
+    def test_orden_invertido_descripcion_antes_del_monto(self):
+        assert parse_income("ingreso: uber 50000") == {
+            "amount": 50000,
+            "description": "uber",
+        }
 
     def test_monto_negativo_se_rechaza(self):
         assert parse_income("ingreso: -500 uber") is None
@@ -411,6 +453,90 @@ class TestCalculateMonthlyBalance:
         ]
 
         assert calculate_monthly_balance(entries, self.HOY)["expenses"] == 0
+
+
+class TestCalculateWeeklyBalance:
+    HOY = date(2026, 10, 15)
+
+    def _inicio_y_fin_de_semana(self, dia):
+        inicio = dia - timedelta(days=dia.weekday())
+        fin = inicio + timedelta(days=6)
+        return inicio, fin
+
+    def test_suma_toda_la_semana_lunes_a_domingo(self):
+        inicio, fin = self._inicio_y_fin_de_semana(self.HOY)
+
+        entries = [
+            {
+                "created_at": f"{inicio.isoformat()}T08:00:00",
+                "type": "ingreso",
+                "amount": 100000,
+            },
+            {
+                "created_at": f"{fin.isoformat()}T20:00:00",
+                "type": "gasto",
+                "amount": 30000,
+            },
+        ]
+
+        assert calculate_weekly_balance(entries, self.HOY) == {
+            "income": 100000,
+            "expenses": 30000,
+            "balance": 70000,
+        }
+
+    def test_ignora_un_dia_antes_y_un_dia_despues_de_la_semana(self):
+        inicio, fin = self._inicio_y_fin_de_semana(self.HOY)
+        un_dia_antes = inicio - timedelta(days=1)
+        un_dia_despues = fin + timedelta(days=1)
+
+        entries = [
+            {
+                "created_at": f"{un_dia_antes.isoformat()}T23:59:00",
+                "type": "gasto",
+                "amount": 1000,
+            },
+            {
+                "created_at": f"{un_dia_despues.isoformat()}T00:00:00",
+                "type": "gasto",
+                "amount": 2000,
+            },
+        ]
+
+        assert calculate_weekly_balance(entries, self.HOY)["expenses"] == 0
+
+    def test_cruza_un_cambio_de_mes_sin_problema(self):
+        # A diferencia de calculate_monthly_balance (que compara un
+        # prefijo de fecha), una semana puede empezar en un mes y terminar
+        # en el siguiente — acá se prueba justo ese caso, generado a
+        # partir de una fecha real que cruza fin de octubre.
+        fin_de_mes = date(2026, 10, 29)
+        inicio, fin = self._inicio_y_fin_de_semana(fin_de_mes)
+
+        entries = [
+            {
+                "created_at": f"{inicio.isoformat()}T09:00:00",
+                "type": "ingreso",
+                "amount": 5000,
+            },
+            {
+                "created_at": f"{fin.isoformat()}T09:00:00",
+                "type": "ingreso",
+                "amount": 7000,
+            },
+        ]
+
+        assert calculate_weekly_balance(entries, fin_de_mes)["income"] == 12000
+
+    def test_registro_sin_fecha_se_ignora(self):
+        entries = [{"type": "ingreso", "amount": 5000}]
+
+        assert calculate_weekly_balance(entries, self.HOY)["income"] == 0
+
+    def test_registro_con_fecha_invalida_se_ignora(self):
+        entries = [{"created_at": "no es una fecha", "type": "ingreso", "amount": 5000}]
+
+        assert calculate_weekly_balance(entries, self.HOY)["income"] == 0
 
 
 class TestCalculateTotalIncome:
@@ -1123,6 +1249,17 @@ class TestHandleCommandTypeado:
             assert "Gastaste" in handle_command("total gastos")["respuesta"]
             assert "Ingresaste" in handle_command("total ingresos")["respuesta"]
 
+    def test_balance_semana(self):
+        with archivo_temporal():
+            save_entry("ingreso", "ingreso: 100000 uber")
+            save_entry("gasto", "gasto: 30000 nafta")
+
+            resultado = handle_command("balance semana")
+
+            assert resultado["respuesta"] == (
+                "Ingresos: $100.000 · Gastos: $30.000 · Balance: $70.000"
+            )
+
     def test_balance_total(self):
         with archivo_temporal():
             save_entry("ingreso", "ingreso: 100000 uber")
@@ -1161,9 +1298,19 @@ class TestHandleCommandTypeado:
 
             assert resultado["respuesta"] == "No encontré registros para ese filtro."
 
-    def test_listar_con_typo_no_se_confunde_con_total(self):
+    def test_listar_en_singular_no_se_confunde_con_total(self):
+        # "listar gasto" (singular) es un comando real desde que
+        # _LIST_TYPE_WORDS acepta singular y plural; antes de ese arreglo
+        # no se reconocía, y esta prueba comprobaba que al menos no se
+        # confundiera con "total gastos" por la fuzzy-matching. Ahora
+        # comprueba lo mismo, pero con el comando funcionando de verdad.
         with archivo_temporal():
-            assert handle_command("listar gasto") is None
+            save_entry("gasto", "gasto: 5000 pan")
+
+            resultado = handle_command("listar gasto")
+
+            assert "pan" in resultado["respuesta"]
+            assert "Gastaste" not in resultado["respuesta"]
 
     def test_texto_sin_relacion_sigue_devolviendo_none(self):
         with archivo_temporal():

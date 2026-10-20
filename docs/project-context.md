@@ -213,6 +213,22 @@ oculta, con reintento), sin depender de abrir una terminal a mano — una
 solución provisoria mientras sigue pendiente un equipo dedicado siempre
 encendido. 222 pruebas automatizadas en total.
 
+### Sprint 11: tres arreglos encontrados revisando los datos reales — terminado
+
+En vez de inventar funciones, se revisó (con cuidado) el archivo de datos
+real para ver qué fallaba de verdad. Aparecieron tres patrones repetidos:
+`listar tarea`/`listar gasto` en singular no se reconocía (pasó 4 veces,
+terminaba como nota suelta); escribir la descripción antes del monto
+("gasto: nafta 12000") tampoco (pasó varias veces, mismo resultado); y dos
+tareas creadas a mano ("hacer el resumen semanal", "hacer los números de
+la semana") mostraban que faltaba un `balance semana`, ya que el usuario
+lo estaba haciendo manualmente. Se agregaron los tres: `_LIST_TYPE_WORDS`
+acepta singular y plural, `_parse_amount_entry` acepta los dos órdenes, y
+`calculate_weekly_balance` sigue el mismo patrón que `balance mes`/`total`
+pero compara fechas en vez de un prefijo (una semana puede cruzar dos
+meses). El resumen de la web suma el chip "Esta semana". 238 pruebas
+automatizadas en total.
+
 ## Funciones actuales
 
 ```text
@@ -236,6 +252,7 @@ listar <tipo> mes
 total gastos
 total ingresos
 balance dia
+balance semana
 balance mes
 balance total
 borrar <id>

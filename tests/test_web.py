@@ -49,6 +49,15 @@ class TestIndex:
             assert b"Siempre" in respuesta.data
             assert "$100.000".encode("utf-8") in respuesta.data
 
+    def test_el_resumen_incluye_el_balance_de_la_semana(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "ingreso: 100000 uber"})
+
+            respuesta = cliente().get("/")
+
+            assert b"Esta semana" in respuesta.data
+            assert "$100.000".encode("utf-8") in respuesta.data
+
     def test_las_secciones_estan_divididas_por_tipo(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
@@ -153,6 +162,16 @@ class TestAgregar:
             assert respuesta.status_code == 200
             assert len(load_entries()) == 1
             assert load_entries()[0]["amount"] == 5000
+
+    def test_guarda_un_gasto_con_la_descripcion_antes_del_monto(self):
+        with archivo_temporal():
+            respuesta = cliente().post(
+                "/agregar", data={"texto": "gasto: nafta 5000"}, follow_redirects=True
+            )
+
+            assert respuesta.status_code == 200
+            assert load_entries()[0]["amount"] == 5000
+            assert load_entries()[0]["description"] == "nafta"
 
     def test_gasto_invalido_no_guarda_nada_y_muestra_error(self):
         with archivo_temporal():
@@ -283,6 +302,15 @@ class TestComandosEnElComposer:
             assert "$100.000".encode("utf-8") in respuesta.data
             assert len(load_entries()) == 1  # no agregó un segundo registro
 
+    def test_balance_semana(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "ingreso: 100000 uber"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "balance semana"})
+
+            assert b"Balance" in respuesta.data
+            assert "$100.000".encode("utf-8") in respuesta.data
+
     def test_balance_total(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "ingreso: 100000 uber"})
@@ -361,6 +389,14 @@ class TestComandosEnElComposer:
             cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
 
             respuesta = cliente().post("/agregar", data={"texto": "listar tareas"})
+
+            assert b"comprar arroz" in respuesta.data
+
+    def test_listar_tarea_en_singular(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
+
+            respuesta = cliente().post("/agregar", data={"texto": "listar tarea"})
 
             assert b"comprar arroz" in respuesta.data
 

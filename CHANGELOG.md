@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.0
+
+- `listar tarea` / `listar gasto` (singular) ya se reconoce igual que `listar tareas` / `listar gastos`. Encontrado revisando el archivo de datos real: pasó 4 veces y las 4 terminó guardado como nota suelta en vez de listar algo.
+- Gastos e ingresos ahora aceptan la descripción antes del monto (`gasto: nafta 12000`, no solo `gasto: 12000 nafta`) — mismo hallazgo: es como se habla en la vida real, y pasó varias veces.
+- Nuevo comando `balance semana` (lunes a domingo), a los tres canales, más el chip "Esta semana" en el resumen de la web. Motivado por dos tareas reales que el usuario se había creado a sí mismo para acordarse de hacer este cálculo a mano.
+- 16 pruebas nuevas (238 en total).
+
 ## 0.11.0
 
 - Las pestañas por tipo de la web ahora incluyen Recordatorios y Balance diario (se podían crear y listar por el composer, pero no aparecían en ninguna pestaña desde que se agregaron).

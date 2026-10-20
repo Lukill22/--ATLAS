@@ -1,5 +1,5 @@
 from contextlib import suppress
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 import difflib
 import json
@@ -36,7 +36,10 @@ def _parse_amount(amount_text: str) -> int | None:
 def _parse_amount_entry(text: str, prefix: str) -> dict | None:
     """Extrae monto y descripción de un texto con la forma "<prefijo> monto desc".
 
-    Lo comparten gastos e ingresos: ambos tienen el mismo formato.
+    Lo comparten gastos e ingresos: ambos tienen el mismo formato. También
+    acepta el orden invertido ("<prefijo> desc monto", ej. "gasto: nafta
+    12000"): es un error real y repetido — así se habla en la vida real,
+    diciendo primero de qué es el gasto y después cuánto fue.
     """
 
     if not text.lower().startswith(prefix):
@@ -48,17 +51,25 @@ def _parse_amount_entry(text: str, prefix: str) -> dict | None:
         return None
 
     parts = content.split(maxsplit=1)
-
     amount = _parse_amount(parts[0])
+
+    if amount is not None:
+        description = parts[1] if len(parts) > 1 else "Sin descripción"
+        return {"amount": amount, "description": description}
+
+    palabras = content.split()
+
+    if len(palabras) < 2:
+        return None
+
+    amount = _parse_amount(palabras[-1])
 
     if amount is None:
         return None
 
-    description = parts[1] if len(parts) > 1 else "Sin descripción"
-
     return {
         "amount": amount,
-        "description": description,
+        "description": " ".join(palabras[:-1]),
     }
 
 
@@ -678,12 +689,20 @@ def build_corrected_text(text: str, correct_prefix: str) -> str:
 
 
 # Palabra tal como se escribe -> tipo interno, para parse_list_command.
+# Acepta tanto el plural ("listar gastos") como el singular ("listar
+# gasto"): caso real repetido, se escribe en singular sin pensarlo.
 _LIST_TYPE_WORDS = {
+    "gasto": "gasto",
     "gastos": "gasto",
+    "ingreso": "ingreso",
     "ingresos": "ingreso",
+    "tarea": "tarea",
     "tareas": "tarea",
+    "idea": "idea",
     "ideas": "idea",
+    "nota": "nota",
     "notas": "nota",
+    "recordatorio": "recordatorio",
     "recordatorios": "recordatorio",
 }
 
@@ -926,6 +945,53 @@ def calculate_monthly_balance(entries: list[dict], day: date) -> dict:
     return _sum_income_and_expenses(entries, day.strftime("%Y-%m"))
 
 
+def calculate_weekly_balance(entries: list[dict], day: date) -> dict:
+    """Igual que calculate_balance, pero agrupa de lunes a domingo (la
+    semana que contiene a "day") en vez de por día o mes.
+
+    A diferencia de calculate_balance/calculate_monthly_balance, una
+    semana puede cruzar dos meses (ej. 29/10 a 4/11), así que no alcanza
+    con comparar un prefijo del string de fecha: hay que parsear la fecha
+    de cada registro y compararla contra el rango real de la semana.
+    """
+
+    inicio_semana = day - timedelta(days=day.weekday())
+    fin_semana = inicio_semana + timedelta(days=7)
+
+    income = 0
+    expenses = 0
+
+    for entry in entries:
+        created_at = entry.get("created_at")
+
+        if not created_at:
+            continue
+
+        try:
+            fecha = datetime.fromisoformat(created_at).date()
+        except ValueError:
+            continue
+
+        if not (inicio_semana <= fecha < fin_semana):
+            continue
+
+        amount = entry.get("amount")
+
+        if not isinstance(amount, int | float):
+            continue
+
+        if entry.get("type") == "ingreso":
+            income += amount
+        elif entry.get("type") == "gasto":
+            expenses += amount
+
+    return {
+        "income": income,
+        "expenses": expenses,
+        "balance": income - expenses,
+    }
+
+
 def calculate_total_balance(entries: list[dict]) -> dict:
     """Igual que calculate_balance, pero de toda la vida (sin filtrar por
     fecha): todo string de fecha empieza con el prefijo vacío.
@@ -958,6 +1024,18 @@ def show_monthly_balance() -> None:
     print()
 
 
+def show_weekly_balance() -> None:
+    """Muestra ingresos, gastos y balance de la semana actual (lunes a domingo)."""
+
+    result = calculate_weekly_balance(load_entries(), date.today())
+
+    print("\nAtlas: Balance de la semana\n")
+    print(f"  Ingresos: {format_money(result['income'])}")
+    print(f"  Gastos:   {format_money(result['expenses'])}")
+    print(f"  Balance:  {format_money(result['balance'])}")
+    print()
+
+
 def show_total_balance() -> None:
     """Muestra ingresos, gastos y balance de toda la vida."""
 
@@ -976,7 +1054,7 @@ HELP_TEXT = """Comandos disponibles:
   listar hoy / mes
 
   total gastos / ingresos
-  balance dia / mes / total
+  balance dia / semana / mes / total
 
   borrar <id>
   hecha <id>
@@ -1034,6 +1112,7 @@ _FIXED_COMMANDS = [
     "total gastos",
     "total ingresos",
     "balance dia",
+    "balance semana",
     "balance mes",
     "balance total",
     "backup",
@@ -1109,6 +1188,13 @@ def handle_command(texto: str) -> dict | None:
         return {
             "respuesta": format_balance_summary(
                 calculate_balance(load_entries(), date.today())
+            )
+        }
+
+    if comando == "balance semana":
+        return {
+            "respuesta": format_balance_summary(
+                calculate_weekly_balance(load_entries(), date.today())
             )
         }
 
@@ -1264,6 +1350,10 @@ def main() -> None:
 
         if command == "balance dia":
             show_daily_balance()
+            continue
+
+        if command == "balance semana":
+            show_weekly_balance()
             continue
 
         if command == "balance mes":

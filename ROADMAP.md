@@ -325,6 +325,25 @@ Fuera de alcance (a propósito): equipo dedicado siempre encendido
 (Raspberry Pi/laptop vieja, sigue pendiente — esto es un parche
 mientras tanto), autenticación/login para la web.
 
+## Sprint 11 — Tres arreglos encontrados revisando los datos reales (terminado)
+
+Problema que resuelve: en vez de seguir agregando funciones nuevas sin un
+problema validado, se revisó el archivo de datos real (con cuidado, sin
+tocar nada) buscando patrones repetidos de uso real que no funcionaran
+como se esperaba. Aparecieron tres.
+
+Versión mínima:
+
+- [x] `listar tarea`/`listar gasto` (singular) — pasó 4 veces en el historial real, siempre terminó como nota suelta.
+- [x] `gasto:`/`ingreso:` aceptan la descripción antes del monto ("gasto: nafta 12000") — pasó varias veces, es como se habla en la vida real.
+- [x] `balance semana` (lunes a domingo) en los tres canales, más el chip "Esta semana" en la web — motivado por dos tareas reales que el usuario se creó a sí mismo para acordarse de calcularlo a mano.
+- [x] Pruebas automatizadas para los tres.
+
+Fuera de alcance (a propósito): adivinar el tipo cuando no hay ningún
+prefijo (`gasto:`/`ingreso:`) presente — eso ya no es tolerar un error de
+tipeo, es adivinar sin ninguna señal, y rompería la regla explícita del
+propio usuario ("lo que no tenga la indicación, va a notas").
+
 ---
 
 ## Futuro de Atlas
