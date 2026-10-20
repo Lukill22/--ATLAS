@@ -27,6 +27,7 @@ from atlas.main import (
     find_entry,
     format_entry_summary,
     format_money,
+    format_saved_message,
     get_due_daily_balances,
     get_due_reminders,
     handle_command,
@@ -655,6 +656,70 @@ class TestGuardadoYLectura:
 
             assert not ruta.exists()
 
+
+class TestInferCategory:
+    # A pedido: después de categorizar algo a mano una sola vez, los
+    # próximos registros parecidos se categorizan solos.
+
+    def test_categoriza_solo_despues_de_la_primera_vez(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            segundo = save_entry("gasto", "gasto: 3000 nafta")
+
+            assert segundo["categoria"] == "auto"
+
+    def test_categoria_explicita_tiene_prioridad_sobre_la_inferida(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            segundo = save_entry("gasto", "gasto: 3000 nafta #otra")
+
+            assert segundo["categoria"] == "otra"
+
+    def test_sin_coincidencia_no_asigna_categoria(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            segundo = save_entry("gasto", "gasto: 2000 pan")
+
+            assert "categoria" not in segundo
+
+    def test_no_se_confunde_por_palabras_de_relleno_compartidas(self):
+        # Bug real evitado: "en nafta" y "en comida" comparten "en", que
+        # no debe alcanzar como señal para categorizar.
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 en nafta #auto")
+
+            segundo = save_entry("gasto", "gasto: 2000 en comida")
+
+            assert "categoria" not in segundo
+
+    def test_gastos_e_ingresos_no_se_mezclan(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            ingreso = save_entry("ingreso", "ingreso: 3000 nafta")
+
+            assert "categoria" not in ingreso
+
+    def test_usa_la_categorizacion_mas_reciente(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+            save_entry("gasto", "gasto: 3000 nafta #transporte")
+
+            tercero = save_entry("gasto", "gasto: 1000 nafta")
+
+            assert tercero["categoria"] == "transporte"
+
+    def test_sin_descripcion_no_intenta_categorizar(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            sin_desc = save_entry("gasto", "gasto: 2000")
+
+            assert "categoria" not in sin_desc
+
     def test_una_tarea_no_lleva_monto(self):
         with archivo_temporal():
             entry = save_entry("tarea", "tarea: comprar arroz")
@@ -1028,6 +1093,23 @@ class TestMarkReminderNotified:
             entry = save_entry("gasto", "gasto: 5000 pan")
 
             assert mark_reminder_notified(entry["id"]) is False
+
+
+class TestFormatSavedMessage:
+    def test_sin_categoria(self):
+        assert format_saved_message("gasto", {}) == "Guardado como gasto."
+
+    def test_con_categoria(self):
+        assert (
+            format_saved_message("gasto", {"categoria": "auto"})
+            == "Guardado como gasto (#auto)."
+        )
+
+    def test_reemplaza_guion_bajo_en_el_tipo(self):
+        assert (
+            format_saved_message("balance_diario", {})
+            == "Guardado como balance diario."
+        )
 
 
 class TestFormatEntrySummaryCategoria:

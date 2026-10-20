@@ -41,6 +41,7 @@ from atlas.main import (  # noqa: E402
     find_entry,
     format_balance_summary,
     format_entry_summary,
+    format_saved_message,
     get_due_daily_balances,
     get_due_reminders,
     handle_command,
@@ -120,7 +121,7 @@ def _guardar_y_avisar(chat_id: int, entry_type: str, texto: str) -> None:
                 f"Listo, te mando el balance todos los días a las {entry['hora']}.",
             )
         else:
-            send_message(chat_id, f"Guardado como {entry_type}.")
+            send_message(chat_id, format_saved_message(entry_type, entry))
 
     except ValueError as error:
         send_message(chat_id, str(error))

@@ -364,6 +364,30 @@ después si usarla un tiempo muestra que hace falta. Agrupar visualmente
 por categoría dentro de una pestaña de la web (hoy se distingue por el
 tag al final de cada tarjeta, no con subtítulos separados).
 
+**Actualización:** el usuario probó esto y no quedó conforme con tener
+que escribir `#categoria` cada vez — lo que quería era que Atlas
+categorice solo después de la primera vez. Ver Sprint 13.
+
+## Sprint 13 — Categorización automática por repetición (terminado)
+
+Problema que resuelve: el Sprint 12 dejó la categoría como algo que hay
+que escribir cada vez; lo que el usuario pedía de verdad era no tener que
+repetirla. Sin usar IA ni listas de palabras predefinidas (esas palabras
+las elige el usuario, no Atlas).
+
+Versión mínima:
+
+- [x] Después de etiquetar una palabra con `#categoria` una sola vez, los próximos gastos/ingresos que mencionen esa palabra se categorizan solos.
+- [x] Separado por tipo: gasto e ingreso nunca se contaminan entre sí (varias fuentes de ingreso quedan cubiertas sin trabajo extra).
+- [x] Palabras de relleno ("en", "el", "la", "de", etc.) no cuentan como señal — evita categorizar mal solo porque dos descripciones comparten una preposición.
+- [x] La categorización explícita con `#categoria` sigue teniendo prioridad sobre la inferida.
+- [x] El mensaje de confirmación ("Guardado como gasto...") muestra la categoría cuando hay una, para que se note cuándo Atlas la detectó sola. De paso, se unificó en una sola función compartida por los tres canales (antes solo la web lo mostraba, y a veces con el nombre interno del tipo con guion bajo).
+- [x] Pruebas automatizadas.
+
+Fuera de alcance (a propósito, por ahora): editar o corregir una
+categorización que salió mal (hoy se corrige escribiendo `#categoria`
+de nuevo en un registro nuevo, no hay forma de recategorizar uno viejo).
+
 ---
 
 ## Futuro de Atlas

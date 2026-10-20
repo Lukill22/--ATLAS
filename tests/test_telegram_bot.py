@@ -46,6 +46,12 @@ class TestProcessTextCaptura:
             assert load_entries()[0]["amount"] == 5000
             enviar.assert_called_once_with(123, "Guardado como gasto.")
 
+    def test_gasto_con_categoria_la_muestra_en_la_confirmacion(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            bot.process_text(123, "gasto: 5000 nafta #auto")
+
+            enviar.assert_called_once_with(123, "Guardado como gasto (#auto).")
+
     def test_gasto_invalido_no_guarda_y_avisa_el_error(self):
         with archivo_temporal(), patch.object(bot, "send_message") as enviar:
             bot.process_text(123, "gasto: abc nafta")

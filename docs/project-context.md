@@ -241,6 +241,19 @@ y agrupar visualmente dentro de una pestaña quedan afuera por ahora,
 pendientes de ver si hacen falta con el uso. 248 pruebas automatizadas en
 total.
 
+### Sprint 13: categorización automática por repetición — terminado
+
+El Sprint 12 pedía escribir `#categoria` cada vez; el usuario probó eso
+y no le cerró — quería que Atlas aprenda después de la primera vez, sin
+IA ni palabras predefinidas por Atlas. Ahora, después de etiquetar
+"nafta" como `#auto` una sola vez, los próximos gastos con "nafta" se
+categorizan solos (`_infer_category`, separado por tipo para que gastos
+e ingresos nunca se mezclen, y sin contar palabras de relleno como
+señal). La categorización explícita sigue teniendo prioridad. El mensaje
+de confirmación ahora muestra la categoría cuando hay una, unificado en
+`format_saved_message` para los tres canales. 259 pruebas automatizadas
+en total.
+
 ## Funciones actuales
 
 ```text

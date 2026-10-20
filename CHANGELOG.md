@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0
+
+- Las categorías de gastos e ingresos ahora se infieren solas: después de etiquetar "nafta" como `#auto` una sola vez, los próximos gastos que digan "nafta" se categorizan como "auto" sin volver a escribir el `#`. Separado por tipo (gasto/ingreso nunca se mezclan) y sin contar palabras de relleno ("en", "el", "la", etc.) como señal, para no cruzar categorías por accidente.
+- El mensaje de confirmación al guardar ("Guardado como gasto.") ahora muestra la categoría cuando hay una (`Guardado como gasto (#auto).`), puesta a mano o inferida, igual en los tres canales — antes solo la mostraba la web, y con el nombre interno del tipo a veces con guion bajo.
+- 11 pruebas nuevas (259 en total).
+
 ## 0.13.0
 
 - Categoría opcional en gastos e ingresos: `gasto: 5000 nafta #auto` (puede tener varias palabras, ej. `#gastos fijos`). Si no se pone, todo sigue funcionando exactamente igual que antes.

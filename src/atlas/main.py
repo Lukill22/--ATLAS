@@ -266,6 +266,65 @@ def _write_lines(lines: list[str]) -> None:
         raise
 
 
+# Al inferir una categoría sin "#categoria" explícito, estas palabras no
+# cuentan como señal: aparecen por igual en descripciones de categorías
+# completamente distintas ("en nafta", "en comida") y causarían
+# categorizaciones cruzadas falsas si se las tuviera en cuenta.
+_CATEGORY_STOPWORDS = {
+    "en",
+    "el",
+    "la",
+    "los",
+    "las",
+    "de",
+    "del",
+    "un",
+    "una",
+    "con",
+    "y",
+}
+
+
+def _infer_category(description: str, entry_type: str) -> str | None:
+    """Busca, entre los gastos o ingresos ya guardados, si alguna palabra
+    de "description" ya se había asociado antes a una categoría (puesta a
+    mano con "#categoria"), y devuelve la más reciente que coincida.
+
+    Así, después de etiquetar "nafta" como "#auto" una sola vez, los
+    próximos gastos que digan "nafta" se categorizan solos. Separado por
+    entry_type para que gastos e ingresos nunca se mezclen entre sí.
+    """
+
+    palabras_nuevas = {
+        palabra
+        for palabra in description.lower().split()
+        if palabra not in _CATEGORY_STOPWORDS
+    }
+
+    if not palabras_nuevas:
+        return None
+
+    for entry in reversed(load_entries()):
+        if entry.get("type") != entry_type:
+            continue
+
+        categoria = entry.get("categoria")
+
+        if not categoria:
+            continue
+
+        palabras_viejas = {
+            palabra
+            for palabra in entry.get("description", "").lower().split()
+            if palabra not in _CATEGORY_STOPWORDS
+        }
+
+        if palabras_nuevas & palabras_viejas:
+            return categoria
+
+    return None
+
+
 def create_backup() -> Path | None:
     """Copia el archivo de datos actual a uno con fecha y hora en el nombre.
 
@@ -327,6 +386,12 @@ def save_entry(entry_type: str, text: str, chat_id: int | None = None) -> dict:
 
         entry.update(expense_data)
 
+        if "categoria" not in entry and entry["description"] != "Sin descripción":
+            categoria = _infer_category(entry["description"], "gasto")
+
+            if categoria:
+                entry["categoria"] = categoria
+
     if entry_type == "ingreso":
         income_data = parse_income(text)
 
@@ -337,6 +402,12 @@ def save_entry(entry_type: str, text: str, chat_id: int | None = None) -> dict:
             )
 
         entry.update(income_data)
+
+        if "categoria" not in entry and entry["description"] != "Sin descripción":
+            categoria = _infer_category(entry["description"], "ingreso")
+
+            if categoria:
+                entry["categoria"] = categoria
 
     if entry_type == "recordatorio":
         reminder_data = parse_reminder(text)
@@ -1122,6 +1193,23 @@ def show_backup() -> None:
         print(f"Atlas: Copia de seguridad guardada en {backup_path.name}.")
 
 
+def format_saved_message(entry_type: str, entry: dict) -> str:
+    """Mensaje de confirmación al guardar un registro nuevo, compartido
+    por terminal, web y bot para que los tres digan lo mismo.
+
+    Muestra la categoría si hay una (puesta a mano con "#categoria" o
+    detectada sola de un registro anterior), para que quede claro que
+    Atlas la categorizó sin que haga falta volver a escribirla.
+    """
+
+    etiqueta = entry_type.replace("_", " ")
+
+    if entry.get("categoria"):
+        return f"Guardado como {etiqueta} (#{entry['categoria']})."
+
+    return f"Guardado como {etiqueta}."
+
+
 def format_balance_summary(resultado: dict) -> str:
     """Una línea con ingresos, gastos y balance, para mostrar fuera de la
     terminal (web, Telegram), donde el formato de 3 líneas de
@@ -1304,8 +1392,8 @@ def _save_and_report(entry_type: str, text: str) -> None:
     """Guarda un registro y muestra el resultado (guardado u error)."""
 
     try:
-        save_entry(entry_type, text)
-        print(f"Atlas: Guardado como {entry_type}.")
+        entry = save_entry(entry_type, text)
+        print(f"Atlas: {format_saved_message(entry_type, entry)}")
 
     except ValueError as error:
         print(f"Atlas: {error}")

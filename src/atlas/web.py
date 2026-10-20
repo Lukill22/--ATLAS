@@ -47,6 +47,7 @@ from atlas.main import (  # noqa: E402
     find_entry,
     format_entry_summary,
     format_money,
+    format_saved_message,
     handle_command,
     load_entries,
     mark_task_done,
@@ -135,12 +136,8 @@ def _guardar_y_avisar(entry_type: str, texto: str) -> None:
     """Guarda un registro y deja el resultado como mensaje flash."""
 
     try:
-        save_entry(entry_type, texto)
-        # "balance_diario" se guarda así por ser el mismo nombre que usa
-        # el resto del código (save_entry, _SECCIONES, etc.), pero no es
-        # un texto pensado para mostrar: reemplazamos el "_" por un
-        # espacio para que el mensaje se lea natural.
-        flash(f"Guardado como {entry_type.replace('_', ' ')}.", "ok")
+        entry = save_entry(entry_type, texto)
+        flash(format_saved_message(entry_type, entry), "ok")
 
     except ValueError as error:
         flash(str(error), "error")
