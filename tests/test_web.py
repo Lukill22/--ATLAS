@@ -173,6 +173,15 @@ class TestAgregar:
             assert load_entries()[0]["amount"] == 5000
             assert load_entries()[0]["description"] == "nafta"
 
+    def test_guarda_un_gasto_con_categoria_y_se_ve_en_el_listado(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+
+            assert load_entries()[0]["categoria"] == "auto"
+
+            html = cliente().get("/").data.decode("utf-8")
+            assert "#auto" in html
+
     def test_gasto_invalido_no_guarda_nada_y_muestra_error(self):
         with archivo_temporal():
             respuesta = cliente().post(

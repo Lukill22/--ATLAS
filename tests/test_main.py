@@ -106,6 +106,40 @@ class TestParseExpense:
     def test_orden_invertido_ninguno_de_los_dos_extremos_es_monto_se_rechaza(self):
         assert parse_expense("gasto: nafta en el auto") is None
 
+    def test_categoria_opcional_con_numeral(self):
+        assert parse_expense("gasto: 5000 nafta #auto") == {
+            "amount": 5000,
+            "description": "nafta",
+            "categoria": "auto",
+        }
+
+    def test_categoria_de_varias_palabras(self):
+        assert parse_expense("gasto: 15000 alquiler #gastos fijos") == {
+            "amount": 15000,
+            "description": "alquiler",
+            "categoria": "gastos fijos",
+        }
+
+    def test_categoria_con_orden_invertido(self):
+        assert parse_expense("gasto: nafta 12000 #auto") == {
+            "amount": 12000,
+            "description": "nafta",
+            "categoria": "auto",
+        }
+
+    def test_sin_categoria_no_agrega_la_clave(self):
+        resultado = parse_expense("gasto: 5000 nafta")
+        assert "categoria" not in resultado
+
+    def test_numeral_sin_nada_despues_no_cuenta_como_categoria(self):
+        assert parse_expense("gasto: 5000 nafta #") == {
+            "amount": 5000,
+            "description": "nafta",
+        }
+
+    def test_numeral_sin_monto_valido_antes_se_rechaza(self):
+        assert parse_expense("gasto: #auto") is None
+
 
 class TestDetectEntryType:
     def test_detecta_gasto(self):
@@ -324,6 +358,13 @@ class TestParseIncome:
         assert parse_income("ingreso: uber 50000") == {
             "amount": 50000,
             "description": "uber",
+        }
+
+    def test_categoria_opcional(self):
+        assert parse_income("ingreso: 50000 uber #freelance") == {
+            "amount": 50000,
+            "description": "uber",
+            "categoria": "freelance",
         }
 
     def test_monto_negativo_se_rechaza(self):
@@ -987,6 +1028,23 @@ class TestMarkReminderNotified:
             entry = save_entry("gasto", "gasto: 5000 pan")
 
             assert mark_reminder_notified(entry["id"]) is False
+
+
+class TestFormatEntrySummaryCategoria:
+    def test_con_categoria_la_muestra_al_final(self):
+        entry = {
+            "type": "gasto",
+            "amount": 5000,
+            "description": "nafta",
+            "categoria": "auto",
+        }
+
+        assert format_entry_summary(entry) == "[gasto] $5.000 - nafta #auto"
+
+    def test_sin_categoria_no_cambia_nada(self):
+        entry = {"type": "gasto", "amount": 5000, "description": "nafta"}
+
+        assert format_entry_summary(entry) == "[gasto] $5.000 - nafta"
 
 
 class TestFormatEntrySummaryRecordatorio:

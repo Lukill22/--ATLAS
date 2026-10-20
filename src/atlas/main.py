@@ -34,12 +34,18 @@ def _parse_amount(amount_text: str) -> int | None:
 
 
 def _parse_amount_entry(text: str, prefix: str) -> dict | None:
-    """Extrae monto y descripción de un texto con la forma "<prefijo> monto desc".
+    """Extrae monto, descripción y categoría opcional de un texto con la
+    forma "<prefijo> monto desc #categoria".
 
     Lo comparten gastos e ingresos: ambos tienen el mismo formato. También
     acepta el orden invertido ("<prefijo> desc monto", ej. "gasto: nafta
     12000"): es un error real y repetido — así se habla en la vida real,
     diciendo primero de qué es el gasto y después cuánto fue.
+
+    La categoría es opcional, va al final separada por "#" (puede tener
+    varias palabras, ej. "#gastos fijos"), y es la única parte de este
+    formato donde "#" tiene un significado especial: en cualquier otro
+    lugar del texto, "#" es un caracter común.
     """
 
     if not text.lower().startswith(prefix):
@@ -50,12 +56,27 @@ def _parse_amount_entry(text: str, prefix: str) -> dict | None:
     if not content:
         return None
 
+    category = None
+
+    if "#" in content:
+        content, _, category_text = content.partition("#")
+        content = content.strip()
+        category = category_text.strip() or None
+
+        if not content:
+            return None
+
     parts = content.split(maxsplit=1)
     amount = _parse_amount(parts[0])
 
     if amount is not None:
         description = parts[1] if len(parts) > 1 else "Sin descripción"
-        return {"amount": amount, "description": description}
+        result = {"amount": amount, "description": description}
+
+        if category:
+            result["categoria"] = category
+
+        return result
 
     palabras = content.split()
 
@@ -67,10 +88,15 @@ def _parse_amount_entry(text: str, prefix: str) -> dict | None:
     if amount is None:
         return None
 
-    return {
+    result = {
         "amount": amount,
         "description": " ".join(palabras[:-1]),
     }
+
+    if category:
+        result["categoria"] = category
+
+    return result
 
 
 def parse_expense(text: str) -> dict | None:
@@ -790,7 +816,12 @@ def format_entry_summary(entry: dict) -> str:
     if category in {"gasto", "ingreso"} and "amount" in entry:
         amount = format_money(entry["amount"])
         description = entry.get("description", "Sin descripción")
-        return f"[{category}] {amount} - {description}"
+        resumen = f"[{category}] {amount} - {description}"
+
+        if entry.get("categoria"):
+            resumen += f" #{entry['categoria']}"
+
+        return resumen
 
     if category == "tarea":
         estado = "[x]" if entry.get("done") else "[ ]"
@@ -1062,6 +1093,7 @@ HELP_TEXT = """Comandos disponibles:
 
   recordatorio: 19/10 08:00 sacar la basura
   balance diario: 23:00
+  gasto:/ingreso: ... #categoria (opcional, ej. gasto: 5000 nafta #auto)
 
   ayuda
   salir"""
@@ -1069,7 +1101,8 @@ HELP_TEXT = """Comandos disponibles:
 # web y el bot no tienen "salir": cerrar la pestaña/chat alcanza), para que
 # la ayuda nunca se desincronice entre los tres. No incluye cómo capturar
 # gasto:/tarea:/etc. (una vez que se sabe usar, esa parte sobra acá), pero
-# sí el formato de "recordatorio:" porque la fecha/hora no es adivinable.
+# sí el formato de "recordatorio:" y el de "#categoria" porque ninguno de
+# los dos es adivinable.
 
 
 def show_help() -> None:

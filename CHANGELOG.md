@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0
+
+- Categoría opcional en gastos e ingresos: `gasto: 5000 nafta #auto` (puede tener varias palabras, ej. `#gastos fijos`). Si no se pone, todo sigue funcionando exactamente igual que antes.
+- `format_entry_summary` muestra la categoría al final (`[gasto] $5.000 - nafta #auto`) en los tres canales, así se puede diferenciar a simple vista dentro de una misma sección (ej. Gastos) sin abrir cada registro.
+- 10 pruebas nuevas (248 en total).
+
 ## 0.12.0
 
 - `listar tarea` / `listar gasto` (singular) ya se reconoce igual que `listar tareas` / `listar gastos`. Encontrado revisando el archivo de datos real: pasó 4 veces y las 4 terminó guardado como nota suelta en vez de listar algo.

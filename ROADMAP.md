@@ -344,6 +344,26 @@ prefijo (`gasto:`/`ingreso:`) presente — eso ya no es tolerar un error de
 tipeo, es adivinar sin ninguna señal, y rompería la regla explícita del
 propio usuario ("lo que no tenga la indicación, va a notas").
 
+## Sprint 12 — Categorías opcionales en gastos e ingresos (terminado)
+
+Problema que resuelve: dentro de una misma sección (ej. Gastos) no había
+forma de diferenciar comida, nafta, gastos fijos, etc. — todo se veía
+igual salvo por la descripción libre.
+
+Versión mínima:
+
+- [x] Categoría opcional al final de la captura, con `#` (ej. `gasto: 5000 nafta #auto`), compartida entre gasto e ingreso.
+- [x] Puede tener varias palabras (`#gastos fijos`).
+- [x] Si no se pone categoría, el comportamiento es exactamente el mismo que antes (no rompe nada existente).
+- [x] Se muestra al final del resumen del registro en los tres canales.
+- [x] Pruebas automatizadas.
+
+Fuera de alcance (a propósito, por ahora): filtrar/totalizar por
+categoría (ej. `listar gastos #auto`, `total gastos #auto`) — se agrega
+después si usarla un tiempo muestra que hace falta. Agrupar visualmente
+por categoría dentro de una pestaña de la web (hoy se distingue por el
+tag al final de cada tarjeta, no con subtítulos separados).
+
 ---
 
 ## Futuro de Atlas

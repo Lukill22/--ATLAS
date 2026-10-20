@@ -229,10 +229,23 @@ pero compara fechas en vez de un prefijo (una semana puede cruzar dos
 meses). El resumen de la web suma el chip "Esta semana". 238 pruebas
 automatizadas en total.
 
+### Sprint 12: categorías opcionales en gastos e ingresos — terminado
+
+A pedido: poder diferenciar, dentro de una misma sección (ej. Gastos),
+comida/nafta/gastos fijos/etc. Se agregó una categoría opcional al final
+de la captura con `#` (`gasto: 5000 nafta #auto`, admite varias palabras),
+compartida entre gasto e ingreso vía `_parse_amount_entry`. Sin categoría,
+el comportamiento es idéntico al de antes. Se muestra al final del
+resumen del registro en los tres canales. Filtrar/totalizar por categoría
+y agrupar visualmente dentro de una pestaña quedan afuera por ahora,
+pendientes de ver si hacen falta con el uso. 248 pruebas automatizadas en
+total.
+
 ## Funciones actuales
 
 ```text
 gasto: 15000 nafta
+gasto: 15000 nafta #auto (categoría opcional)
 ingreso: 100000 uber
 tarea: comprar arroz
 idea: crear módulo de estudio
