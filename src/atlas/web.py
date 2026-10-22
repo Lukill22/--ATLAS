@@ -48,11 +48,62 @@ from atlas.main import (  # noqa: E402
     format_entry_summary,
     format_money,
     format_saved_message,
+    group_by_category,
     handle_command,
     load_entries,
     mark_task_done,
     save_entry,
 )
+
+# Paleta categórica validada (contraste y daltonismo) para los colores de
+# identidad de cada categoría real. "Sin categoría" y "Otras" usan grises
+# reservados en vez de un color de identidad: no son categorías de
+# verdad, son un "no sé"/"junté el resto".
+_PALETA_CATEGORIAS = [
+    "#2a78d6",  # azul
+    "#eb6834",  # naranja
+    "#1baf7a",  # aqua
+    "#eda100",  # amarillo
+    "#e87ba4",  # magenta
+    "#008300",  # verde
+    "#6250d6",  # violeta
+    "#e34948",  # rojo
+]
+_GRIS_SIN_CATEGORIA = "#aba99f"
+_GRIS_OTRAS = "#7a7870"
+
+
+def _con_color_y_porcentaje(items: list[dict]) -> list[dict]:
+    """Agrega color y porcentaje a cada item de group_by_category, listos
+    para la barra apilada y su leyenda.
+
+    El color de cada categoría real se asigna en orden alfabético (no por
+    monto): así una categoría no cambia de color solo porque este mes
+    pasó a ser más chica que otra. "Sin categoría" y "Otras" siempre usan
+    el mismo gris reservado.
+    """
+
+    categorias_reales = sorted(
+        {item["categoria"] for item in items} - {"Sin categoría", "Otras"}
+    )
+    color_por_categoria = {
+        categoria: _PALETA_CATEGORIAS[indice]
+        for indice, categoria in enumerate(categorias_reales)
+    }
+    color_por_categoria["Sin categoría"] = _GRIS_SIN_CATEGORIA
+    color_por_categoria["Otras"] = _GRIS_OTRAS
+
+    total = sum(item["total"] for item in items)
+
+    return [
+        {
+            **item,
+            "color": color_por_categoria[item["categoria"]],
+            "pct": round(item["total"] / total * 100) if total else 0,
+        }
+        for item in items
+    ]
+
 
 app = Flask(__name__)
 # Esta clave firma las cookies de sesión (flash messages), no autentica a
@@ -120,6 +171,10 @@ def _render_index(pendiente=None, respuesta=None, respuesta_es_ayuda=False):
         balance_semana=calculate_weekly_balance(load_entries(), date.today()),
         balance_mes=calculate_monthly_balance(load_entries(), date.today()),
         balance_total=calculate_total_balance(load_entries()),
+        categorias_gasto=_con_color_y_porcentaje(group_by_category(entries, "gasto")),
+        categorias_ingreso=_con_color_y_porcentaje(
+            group_by_category(entries, "ingreso")
+        ),
         format_money=format_money,
         format_entry_summary=format_entry_summary,
     )

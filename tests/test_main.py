@@ -30,6 +30,7 @@ from atlas.main import (
     format_saved_message,
     get_due_daily_balances,
     get_due_reminders,
+    group_by_category,
     handle_command,
     load_entries,
     mark_daily_balance_sent,
@@ -623,6 +624,64 @@ class TestCalculateTotalBalance:
             "expenses": 30000,
             "balance": 70000,
         }
+
+
+class TestGroupByCategory:
+    def test_suma_por_categoria(self):
+        entries = [
+            {"type": "gasto", "amount": 5000, "categoria": "auto"},
+            {"type": "gasto", "amount": 3000, "categoria": "auto"},
+            {"type": "gasto", "amount": 2000, "categoria": "comida"},
+        ]
+
+        assert group_by_category(entries, "gasto") == [
+            {"categoria": "auto", "total": 8000},
+            {"categoria": "comida", "total": 2000},
+        ]
+
+    def test_sin_categoria_se_agrupa_aparte(self):
+        entries = [
+            {"type": "gasto", "amount": 5000, "categoria": "auto"},
+            {"type": "gasto", "amount": 2000},
+        ]
+
+        assert group_by_category(entries, "gasto") == [
+            {"categoria": "auto", "total": 5000},
+            {"categoria": "Sin categoría", "total": 2000},
+        ]
+
+    def test_ignora_otro_tipo(self):
+        entries = [
+            {"type": "gasto", "amount": 5000, "categoria": "auto"},
+            {"type": "ingreso", "amount": 100000, "categoria": "auto"},
+        ]
+
+        assert group_by_category(entries, "gasto") == [
+            {"categoria": "auto", "total": 5000},
+        ]
+
+    def test_ignora_montos_no_numericos(self):
+        entries = [{"type": "gasto", "categoria": "auto", "text": "gasto: 5"}]
+
+        assert group_by_category(entries, "gasto") == []
+
+    def test_sin_registros_da_lista_vacia(self):
+        assert group_by_category([], "gasto") == []
+
+    def test_mas_de_ocho_categorias_junta_las_mas_chicas_en_otras(self):
+        entries = [
+            {"type": "gasto", "amount": 1000 * (10 - i), "categoria": f"cat{i}"}
+            for i in range(10)
+        ]
+
+        resultado = group_by_category(entries, "gasto")
+        categorias = [item["categoria"] for item in resultado]
+
+        assert len(resultado) == 9  # 8 reales + "Otras"
+        assert "Otras" in categorias
+        # Las dos más chicas (cat8: 2000, cat9: 1000) se juntan en "Otras".
+        otras = next(item for item in resultado if item["categoria"] == "Otras")
+        assert otras["total"] == 3000
 
 
 class TestGuardadoYLectura:

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.0
+
+- Nueva sección en la web: gastos e ingresos por categoría, como una barra horizontal apilada (no una torta — más fácil de comparar tamaños entre categorías) con una leyenda de monto y porcentaje por categoría. Respeta el filtro de período ya existente (Todo/Hoy/Este mes).
+- Las entradas sin categoría se agrupan en "Sin categoría", visible en la barra — un recordatorio visual de qué falta categorizar.
+- Colores de categoría de una paleta validada para contraste y daltonismo (ocho colores de identidad, fijos por orden alfabético de la categoría, para que no cambien solo porque una categoría pasó a ser más grande o chica que otra); más de 8 categorías reales, las más chicas se juntan en "Otras". Sin JavaScript, igual que el resto de la web — el detalle al pasar el mouse usa el atributo nativo del navegador, y los valores ya están siempre visibles en la leyenda.
+- 10 pruebas nuevas (269 en total).
+
 ## 0.14.0
 
 - Las categorías de gastos e ingresos ahora se infieren solas: después de etiquetar "nafta" como `#auto` una sola vez, los próximos gastos que digan "nafta" se categorizan como "auto" sin volver a escribir el `#`. Separado por tipo (gasto/ingreso nunca se mezclan) y sin contar palabras de relleno ("en", "el", "la", etc.) como señal, para no cruzar categorías por accidente.

@@ -254,6 +254,20 @@ de confirmación ahora muestra la categoría cuando hay una, unificado en
 `format_saved_message` para los tres canales. 259 pruebas automatizadas
 en total.
 
+### Sprint 14: gastos e ingresos por categoría, visualizados — terminado
+
+El usuario pidió una "torta" para ver en qué se va la plata por
+categoría; se evaluaron torta vs. barra apilada horizontal (más precisa
+para comparar tamaños) y eligió la barra tras ver ambas. Se agregó
+`group_by_category` en `main.py` (agrupa por categoría, con "Sin
+categoría" aparte y "Otras" si hay más de 8), y en la web una barra
+apilada con leyenda de monto y %, usando una paleta de colores validada
+para contraste y daltonismo (asignados por orden alfabético de la
+categoría, estables entre renders). Respeta el filtro de período
+existente. Sin JavaScript — el hover usa el atributo nativo del
+navegador, y el valor ya está siempre visible en la leyenda. 269 pruebas
+automatizadas en total.
+
 ## Funciones actuales
 
 ```text

@@ -58,6 +58,53 @@ class TestIndex:
             assert b"Esta semana" in respuesta.data
             assert "$100.000".encode("utf-8") in respuesta.data
 
+    def test_muestra_gastos_por_categoria(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+            cliente().post("/agregar", data={"texto": "gasto: 2000 pan"})
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert "Gastos por categoría" in html
+            assert "auto" in html
+            assert "Sin categoría" in html
+            assert "$5.000" in html
+            assert "$2.000" in html
+
+    def test_muestra_ingresos_por_categoria(self):
+        with archivo_temporal():
+            cliente().post(
+                "/agregar", data={"texto": "ingreso: 100000 uber #freelance"}
+            )
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert "Ingresos por categoría" in html
+            assert "freelance" in html
+            assert "$100.000" in html
+
+    def test_sin_gastos_muestra_mensaje_vacio(self):
+        with archivo_temporal():
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert "Todavía no hay gastos." in html
+
+    def test_la_misma_categoria_no_cambia_de_color_entre_gasto_e_ingreso(self):
+        # "auto" en gastos y "freelance" en ingresos son categorías de
+        # grupos separados (group_by_category se llama por tipo), así que
+        # cada una arranca el orden alfabético de su propio grupo y puede
+        # coincidir en color sin que sea un error.
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+            cliente().post("/agregar", data={"texto": "gasto: 1000 pan #comida"})
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            # "auto" va antes que "comida" alfabéticamente: le toca el
+            # primer color de la paleta, "comida" el segundo.
+            assert "#2a78d6" in html
+            assert "#eb6834" in html
+
     def test_las_secciones_estan_divididas_por_tipo(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})

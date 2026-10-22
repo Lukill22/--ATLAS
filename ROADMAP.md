@@ -388,6 +388,31 @@ Fuera de alcance (a propósito, por ahora): editar o corregir una
 categorización que salió mal (hoy se corrige escribiendo `#categoria`
 de nuevo en un registro nuevo, no hay forma de recategorizar uno viejo).
 
+## Sprint 14 — Gastos e ingresos por categoría, visualizados (terminado)
+
+Problema que resuelve: una vez categorizados (Sprints 12-13), faltaba
+verlos agrupados — la categoría solo aparecía como una etiqueta más
+dentro de cada tarjeta individual.
+
+Se evaluó un gráfico de torta (lo que pidió el usuario primero) contra
+una barra apilada horizontal; se optó por la barra porque compara
+tamaños entre categorías con más precisión, y el usuario estuvo de
+acuerdo al ver ambas opciones.
+
+Versión mínima:
+
+- [x] Barra apilada horizontal por categoría, una para gastos y otra para ingresos, con leyenda (monto y %).
+- [x] Respeta el filtro de período que ya existía (Todo/Hoy/Este mes).
+- [x] "Sin categoría" como grupo visible aparte (no desaparece del total).
+- [x] Colores de una paleta validada para contraste y daltonismo (contraste, separación bajo daltonismo simulado), asignados por orden alfabético de la categoría para que no cambien de un render a otro.
+- [x] Más de 8 categorías reales se pliegan en "Otras" (la paleta valida solo 8 colores de identidad).
+- [x] Sin JavaScript: el detalle al pasar el mouse usa el atributo nativo `title`; el valor y porcentaje ya están siempre visibles en la leyenda, nunca escondidos detrás de un hover.
+- [x] Pruebas automatizadas.
+
+Fuera de alcance (a propósito, por ahora): filtrar el gráfico por una
+categoría puntual, modo oscuro (la web no lo tiene en ningún otro
+lado todavía).
+
 ---
 
 ## Futuro de Atlas

@@ -998,6 +998,63 @@ def show_total_income() -> None:
     print(f"Atlas: Ingresaste {format_money(total)} en total.")
 
 
+# La paleta de colores validada (contraste y daltonismo) solo tiene 8
+# colores de identidad; más categorías reales que esto no tiene sentido
+# visualmente (se volverían indistinguibles), así que las más chicas se
+# juntan en "Otras" en vez de inventar un noveno color.
+_MAX_CATEGORIAS_CON_COLOR_PROPIO = 8
+
+
+def group_by_category(entries: list[dict], entry_type: str) -> list[dict]:
+    """Agrupa los gastos o ingresos por categoría y suma los montos.
+
+    Los registros sin categoría se agrupan en "Sin categoría". Si hay más
+    de 8 categorías reales, las más chicas (por monto) se juntan en
+    "Otras". Devuelve una lista de {"categoria": ..., "total": ...},
+    ordenada de mayor a menor monto.
+    """
+
+    totales: dict[str, int] = {}
+
+    for entry in entries:
+        if entry.get("type") != entry_type:
+            continue
+
+        amount = entry.get("amount")
+
+        if not isinstance(amount, int | float):
+            continue
+
+        categoria = entry.get("categoria") or "Sin categoría"
+        totales[categoria] = totales.get(categoria, 0) + amount
+
+    items = sorted(
+        (
+            {"categoria": categoria, "total": total}
+            for categoria, total in totales.items()
+        ),
+        key=lambda item: item["total"],
+        reverse=True,
+    )
+
+    categorias_reales = [item for item in items if item["categoria"] != "Sin categoría"]
+
+    if len(categorias_reales) <= _MAX_CATEGORIAS_CON_COLOR_PROPIO:
+        return items
+
+    principales = categorias_reales[:_MAX_CATEGORIAS_CON_COLOR_PROPIO]
+    resto = categorias_reales[_MAX_CATEGORIAS_CON_COLOR_PROPIO:]
+    sin_categoria = [item for item in items if item["categoria"] == "Sin categoría"]
+
+    resultado = (
+        principales
+        + [{"categoria": "Otras", "total": sum(item["total"] for item in resto)}]
+        + sin_categoria
+    )
+
+    return sorted(resultado, key=lambda item: item["total"], reverse=True)
+
+
 def _sum_income_and_expenses(entries: list[dict], period_prefix: str) -> dict:
     """Suma ingresos y gastos cuyo "created_at" empiece con el prefijo dado
     y calcula el balance. Es una función pura (no lee archivos ni imprime)
