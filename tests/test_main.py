@@ -36,6 +36,7 @@ from atlas.main import (
     mark_daily_balance_sent,
     mark_reminder_notified,
     mark_task_done,
+    merge_categories,
     parse_daily_balance_config,
     parse_expense,
     parse_id_command,
@@ -111,6 +112,16 @@ class TestParseExpense:
 
     def test_categoria_opcional_con_numeral(self):
         assert parse_expense("gasto: 5000 nafta #auto") == {
+            "amount": 5000,
+            "description": "nafta",
+            "categoria": "auto",
+        }
+
+    def test_categoria_se_normaliza_a_minusculas(self):
+        # Bug real: "Nafta" y "nafta" quedaban como categorías distintas
+        # sin ninguna forma de notarlo hasta tener registros repartidos
+        # entre las dos.
+        assert parse_expense("gasto: 5000 nafta #Auto") == {
             "amount": 5000,
             "description": "nafta",
             "categoria": "auto",
@@ -931,6 +942,14 @@ class TestSetEntryCategory:
         with archivo_temporal():
             assert set_entry_category(999, "auto") == "no_encontrado"
 
+    def test_normaliza_a_minusculas(self):
+        with archivo_temporal():
+            gasto = save_entry("gasto", "gasto: 5000 nafta")
+
+            set_entry_category(gasto["id"], "Transporte")
+
+            assert load_entries()[0]["categoria"] == "transporte"
+
     def test_no_toca_otras_lineas(self):
         with archivo_temporal():
             primero = save_entry("gasto", "gasto: 5000 nafta #auto")
@@ -942,6 +961,68 @@ class TestSetEntryCategory:
             assert entradas[0]["categoria"] == "transporte"
             assert "categoria" not in entradas[1]
             assert entradas[1]["id"] == segundo["id"]
+
+
+class TestMergeCategories:
+    def test_une_dos_categorias(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #nafta")
+            save_entry("gasto", "gasto: 3000 nafta #auto")
+
+            cambiados = merge_categories("gasto", "nafta", "auto")
+
+            assert cambiados == 1
+            entradas = load_entries()
+            assert entradas[0]["categoria"] == "auto"
+            assert entradas[1]["categoria"] == "auto"
+
+    def test_compara_sin_importar_mayusculas(self):
+        # El caso real que motivó esto: "Nafta" y "nafta" quedaron
+        # separadas antes de empezar a normalizar todo a minúsculas.
+        # Las dos coinciden con "desde" (comparación sin mayúsculas), así
+        # que las dos cuentan como cambiadas, aunque una ya estuviera
+        # bien escrita.
+        with archivo_temporal() as ruta:
+            ruta.write_text(
+                '{"id": 1, "created_at": "2026-10-18T10:00:00", "type": '
+                '"gasto", "amount": 5000, "description": "nafta", '
+                '"categoria": "Nafta"}\n',
+                encoding="utf-8",
+            )
+            save_entry("gasto", "gasto: 3000 nafta #nafta")
+
+            cambiados = merge_categories("gasto", "Nafta", "nafta")
+
+            assert cambiados == 2
+            entradas = load_entries()
+            assert entradas[0]["categoria"] == "nafta"
+            assert entradas[1]["categoria"] == "nafta"
+
+    def test_no_toca_otro_tipo(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+            save_entry("ingreso", "ingreso: 50000 uber #auto")
+
+            merge_categories("gasto", "auto", "transporte")
+
+            entradas = load_entries()
+            assert entradas[0]["categoria"] == "transporte"
+            assert entradas[1]["categoria"] == "auto"
+
+    def test_sin_coincidencias_no_cambia_nada_y_devuelve_cero(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            assert merge_categories("gasto", "inexistente", "otra") == 0
+            assert load_entries()[0]["categoria"] == "auto"
+
+    def test_desde_o_hacia_vacio_no_hace_nada(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            assert merge_categories("gasto", "", "otra") == 0
+            assert merge_categories("gasto", "auto", "") == 0
+            assert load_entries()[0]["categoria"] == "auto"
 
 
 class TestParseIdCommand:

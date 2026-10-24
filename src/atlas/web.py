@@ -52,6 +52,7 @@ from atlas.main import (  # noqa: E402
     handle_command,
     load_entries,
     mark_task_done,
+    merge_categories,
     save_entry,
     set_entry_category,
 )
@@ -121,6 +122,22 @@ def _con_color_y_porcentaje(items: list[dict]) -> list[dict]:
     ]
 
 
+def _categorias_existentes(entry_type: str) -> list[str]:
+    """Todas las categorías ya usadas alguna vez para ese tipo (gasto o
+    ingreso), sin importar el filtro de período actual — unir o elegir
+    una categoría debe poder usar cualquiera que exista, no solo las que
+    aparecen en lo que se está viendo ahora.
+    """
+
+    return sorted(
+        {
+            entry["categoria"]
+            for entry in load_entries()
+            if entry.get("type") == entry_type and entry.get("categoria")
+        }
+    )
+
+
 app = Flask(__name__)
 # Esta clave firma las cookies de sesión (flash messages), no autentica a
 # nadie: no hay login. No protege los datos de otros dispositivos en la
@@ -183,6 +200,11 @@ def _render_index(pendiente=None, respuesta=None, respuesta_es_ayuda=False):
         },
     }
 
+    categorias_existentes = {
+        "gasto": _categorias_existentes("gasto"),
+        "ingreso": _categorias_existentes("ingreso"),
+    }
+
     for entry in entries:
         if entry.get("type") not in ("gasto", "ingreso"):
             continue
@@ -191,6 +213,7 @@ def _render_index(pendiente=None, respuesta=None, respuesta_es_ayuda=False):
         color, texto = color_por_tipo[entry["type"]].get(categoria, _gris_otras)
         entry["categoria_color"] = color
         entry["categoria_texto"] = texto
+        entry["categorias_existentes"] = categorias_existentes[entry["type"]]
 
     secciones = []
 
@@ -217,6 +240,8 @@ def _render_index(pendiente=None, respuesta=None, respuesta_es_ayuda=False):
         balance_total=calculate_total_balance(load_entries()),
         categorias_gasto=categorias_gasto,
         categorias_ingreso=categorias_ingreso,
+        categorias_existentes_gasto=categorias_existentes["gasto"],
+        categorias_existentes_ingreso=categorias_existentes["ingreso"],
         format_money=format_money,
         format_entry_summary=format_entry_summary,
     )
@@ -356,10 +381,14 @@ def hecha(entry_id):
 def cambiar_categoria(entry_id):
     """Cambia la categoría de un gasto o ingreso ya guardado.
 
-    Un campo vacío borra la categoría en vez de rechazar el pedido.
+    El formulario tiene un <select> con las categorías ya existentes y
+    un campo de texto para escribir una nueva; si se escribió algo en el
+    campo de texto, gana por sobre lo elegido en el <select>. Dejar los
+    dos vacíos borra la categoría en vez de rechazar el pedido.
     """
 
-    categoria = request.form.get("categoria", "")
+    categoria_nueva = request.form.get("categoria_nueva", "").strip()
+    categoria = categoria_nueva or request.form.get("categoria_existente", "")
     resultado = set_entry_category(entry_id, categoria)
 
     if resultado == "ok":
@@ -368,6 +397,33 @@ def cambiar_categoria(entry_id):
         flash(f"El registro #{entry_id} no es un gasto ni un ingreso.", "error")
     else:
         flash(f"No encontré ningún registro con id #{entry_id}.", "error")
+
+    return redirect(url_for("index"))
+
+
+@app.route("/categorias/unir", methods=["POST"])
+def unir_categorias():
+    """Une dos categorías existentes de un mismo tipo (gasto o ingreso)
+    en una sola — pensado para arreglar duplicados como "Nafta"/"nafta".
+    """
+
+    tipo = request.form.get("tipo", "")
+    desde = request.form.get("desde", "")
+    hacia = request.form.get("hacia", "")
+
+    if tipo not in ("gasto", "ingreso"):
+        flash("No pude unir: tipo inválido.", "error")
+        return redirect(url_for("index"))
+
+    cambiados = merge_categories(tipo, desde, hacia)
+
+    if cambiados:
+        flash(
+            f'Unidas: {cambiados} registro(s) ahora son "{hacia.strip().lower()}".',
+            "ok",
+        )
+    else:
+        flash("No encontré registros para unir con esas categorías.", "error")
 
     return redirect(url_for("index"))
 

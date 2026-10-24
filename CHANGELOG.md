@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.0
+
+- Las categorías se normalizan a minúsculas automáticamente al guardarse (captura, inferencia automática, y edición manual): "Nafta" y "nafta" eran dos categorías distintas sin ninguna forma de notarlo, encontrado revisando datos reales.
+- Nuevo: "Unir categorías" en la web, debajo de la barra apilada de cada tipo (gasto/ingreso) — junta dos categorías existentes en una sola, pensado justo para arreglar casos como el de arriba que ya habían quedado separados.
+- El botón "Categoría" de cada tarjeta pasa de un campo de texto libre a un `<select>` con las categorías que ya existen (con un campo aparte para escribir una nueva si hace falta) — reduce que se generen duplicados por tipeo a futuro.
+- 14 pruebas nuevas (296 en total).
+
 ## 0.16.0
 
 - Rediseño de las tarjetas de gasto/ingreso en la web: el monto va primero y en negrita, ya no se repite el tipo entre corchetes (redundante dentro de la pestaña Gastos/Ingresos), y la categoría pasa de texto plano `#auto` a una pastilla de color — mismo color que usa en la barra apilada de "por categoría".

@@ -54,6 +54,15 @@ class TestIndex:
             assert f'action="/categoria/{entry_id}"' in html
             assert "<summary>Categoría</summary>" in html
 
+    def test_el_select_de_categoria_incluye_las_que_ya_existen(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+            cliente().post("/agregar", data={"texto": "gasto: 2000 pan"})
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert '<option value="auto"' in html
+
     def test_el_resumen_incluye_el_balance_de_toda_la_vida(self):
         # balance_hoy/balance_mes ya existían y no muestran un ingreso
         # viejo; el chip "Siempre" (balance_total) sí, porque no filtra
@@ -533,19 +542,46 @@ class TestCambiarCategoria:
 
             respuesta = cliente().post(
                 f"/categoria/{entry_id}",
-                data={"categoria": "transporte"},
+                data={"categoria_nueva": "transporte"},
                 follow_redirects=True,
             )
 
             assert load_entries()[0]["categoria"] == "transporte"
             assert "Categoría actualizada".encode("utf-8") in respuesta.data
 
+    def test_elige_una_categoria_existente_del_select(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+            cliente().post("/agregar", data={"texto": "gasto: 2000 pan #comida"})
+            entry_id = load_entries()[0]["id"]
+
+            cliente().post(
+                f"/categoria/{entry_id}", data={"categoria_existente": "comida"}
+            )
+
+            assert load_entries()[0]["categoria"] == "comida"
+
+    def test_categoria_nueva_tiene_prioridad_sobre_la_existente(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+            entry_id = load_entries()[0]["id"]
+
+            cliente().post(
+                f"/categoria/{entry_id}",
+                data={"categoria_existente": "auto", "categoria_nueva": "transporte"},
+            )
+
+            assert load_entries()[0]["categoria"] == "transporte"
+
     def test_categoria_vacia_la_borra(self):
         with archivo_temporal():
             cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
             entry_id = load_entries()[0]["id"]
 
-            cliente().post(f"/categoria/{entry_id}", data={"categoria": ""})
+            cliente().post(
+                f"/categoria/{entry_id}",
+                data={"categoria_existente": "", "categoria_nueva": ""},
+            )
 
             assert "categoria" not in load_entries()[0]
 
@@ -556,7 +592,7 @@ class TestCambiarCategoria:
 
             respuesta = cliente().post(
                 f"/categoria/{entry_id}",
-                data={"categoria": "auto"},
+                data={"categoria_nueva": "auto"},
                 follow_redirects=True,
             )
 
@@ -565,7 +601,54 @@ class TestCambiarCategoria:
     def test_id_inexistente(self):
         with archivo_temporal():
             respuesta = cliente().post(
-                "/categoria/999", data={"categoria": "auto"}, follow_redirects=True
+                "/categoria/999",
+                data={"categoria_nueva": "auto"},
+                follow_redirects=True,
             )
 
             assert respuesta.status_code == 200
+
+
+class TestUnirCategorias:
+    def test_une_dos_categorias_de_gastos(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #nafta"})
+            cliente().post("/agregar", data={"texto": "gasto: 3000 nafta #auto"})
+
+            respuesta = cliente().post(
+                "/categorias/unir",
+                data={"tipo": "gasto", "desde": "nafta", "hacia": "auto"},
+                follow_redirects=True,
+            )
+
+            entradas = load_entries()
+            assert entradas[0]["categoria"] == "auto"
+            assert entradas[1]["categoria"] == "auto"
+            assert "Unidas".encode("utf-8") in respuesta.data
+
+    def test_tipo_invalido_no_rompe(self):
+        with archivo_temporal():
+            respuesta = cliente().post(
+                "/categorias/unir",
+                data={"tipo": "tarea", "desde": "a", "hacia": "b"},
+                follow_redirects=True,
+            )
+
+            assert respuesta.status_code == 200
+
+    def test_la_pagina_principal_muestra_el_control_de_unir(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+            cliente().post("/agregar", data={"texto": "gasto: 2000 pan #comida"})
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert "Unir categorías" in html
+
+    def test_sin_dos_categorias_no_muestra_el_control(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert "Unir categorías" not in html

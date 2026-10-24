@@ -279,6 +279,18 @@ un registro ya guardado — pendiente desde el Sprint 13 —, con un botón
 "Categoría" en la tarjeta (`<details>` + formulario, sin JavaScript).
 282 pruebas automatizadas en total.
 
+### Sprint 16: normalizar, unir y elegir categorías — terminado
+
+Revisando datos reales aparecieron "Nafta" y "nafta" como categorías
+distintas, sin ninguna forma de notarlo ni arreglarlo. Ahora las
+categorías se normalizan a minúsculas en los tres puntos donde se
+crean (captura, inferencia, edición manual), `merge_categories` permite
+unir dos categorías existentes (comparando sin importar mayúsculas, para
+poder arreglar justo los casos ya separados), y la web tiene un control
+"Unir categorías" por tipo. El botón de editar categoría de cada
+tarjeta pasa de texto libre a `<select>` con las que ya existen, para
+no generar más duplicados por tipeo. 296 pruebas automatizadas en total.
+
 ## Funciones actuales
 
 ```text

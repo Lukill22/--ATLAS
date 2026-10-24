@@ -46,6 +46,10 @@ def _parse_amount_entry(text: str, prefix: str) -> dict | None:
     varias palabras, ej. "#gastos fijos"), y es la única parte de este
     formato donde "#" tiene un significado especial: en cualquier otro
     lugar del texto, "#" es un caracter común.
+
+    La categoría se guarda siempre en minúsculas: sin esto, "Nafta" y
+    "nafta" quedan como dos categorías distintas sin ninguna forma de
+    notar el error hasta que ya hay registros repartidos entre las dos.
     """
 
     if not text.lower().startswith(prefix):
@@ -61,7 +65,7 @@ def _parse_amount_entry(text: str, prefix: str) -> dict | None:
     if "#" in content:
         content, _, category_text = content.partition("#")
         content = content.strip()
-        category = category_text.strip() or None
+        category = category_text.strip().lower() or None
 
         if not content:
             return None
@@ -539,7 +543,7 @@ def set_entry_category(entry_id: int, categoria: str) -> str:
         if entry.get("type") not in {"gasto", "ingreso"}:
             return "no_es_gasto_ni_ingreso"
 
-        categoria = categoria.strip()
+        categoria = categoria.strip().lower()
 
         if categoria:
             entry["categoria"] = categoria
@@ -552,6 +556,44 @@ def set_entry_category(entry_id: int, categoria: str) -> str:
         return "ok"
 
     return "no_encontrado"
+
+
+def merge_categories(entry_type: str, desde: str, hacia: str) -> int:
+    """Une dos categorías existentes de un mismo tipo (gasto o ingreso):
+    todo registro con categoría "desde" pasa a tener "hacia".
+
+    Compara sin importar mayúsculas/minúsculas (para poder unir justo el
+    caso típico: "Nafta" y "nafta" quedaron separadas antes de empezar a
+    normalizar todo a minúsculas). Devuelve cuántos registros cambiaron;
+    0 si "desde"/"hacia" están vacíos o no había nada para unir.
+    """
+
+    desde = desde.strip().lower()
+    hacia = hacia.strip().lower()
+
+    if not desde or not hacia:
+        return 0
+
+    lines = _read_lines()
+    cambiados = 0
+
+    for index, line in enumerate(lines):
+        entry = _parse_line(line)
+
+        if entry is None or entry.get("type") != entry_type:
+            continue
+
+        if (entry.get("categoria") or "").lower() != desde:
+            continue
+
+        entry["categoria"] = hacia
+        lines[index] = json.dumps(entry, ensure_ascii=False)
+        cambiados += 1
+
+    if cambiados:
+        _write_lines(lines)
+
+    return cambiados
 
 
 def get_due_reminders(entries: list[dict], ahora: datetime) -> list[dict]:

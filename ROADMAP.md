@@ -432,6 +432,25 @@ Fuera de alcance (a propósito, por ahora): editar otros campos (monto,
 descripción) de un registro ya guardado — por ahora la edición se
 limita a la categoría, que fue lo pedido.
 
+## Sprint 16 — Normalizar, unir y elegir categorías (terminado)
+
+Problema que resuelve: revisando datos reales aparecieron "Nafta" y
+"nafta" como dos categorías distintas (Atlas compara el texto tal cual,
+sin ignorar mayúsculas), y no había forma de arreglarlo salvo recrear
+los registros.
+
+Versión mínima:
+
+- [x] Las categorías se normalizan a minúsculas en los tres puntos donde se crean: captura explícita (`#Categoria`), inferencia automática, y edición manual.
+- [x] `merge_categories(tipo, desde, hacia)`: une dos categorías existentes de un mismo tipo, comparando sin importar mayúsculas (para poder arreglar justo los casos que ya habían quedado separados).
+- [x] "Unir categorías" en la web, con dos `<select>` (categoría de origen y de destino) sobre las categorías que ya existen.
+- [x] El botón "Categoría" de cada tarjeta pasa de texto libre a `<select>` + campo para una nueva, para no generar más duplicados por tipeo.
+- [x] Pruebas automatizadas.
+
+Fuera de alcance (a propósito, por ahora): deshacer una unión, renombrar
+una categoría sin "unirla" con otra existente (hoy se logra lo mismo
+uniéndola con una categoría nueva).
+
 ---
 
 ## Futuro de Atlas

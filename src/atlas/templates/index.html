@@ -209,6 +209,30 @@
       border-radius: 2px;
       flex-shrink: 0;
     }
+    .unir-categorias { margin-top: 0.3rem; font-size: 0.8rem; }
+    .unir-categorias summary { cursor: pointer; color: var(--marca); font-weight: 500; }
+    .unir-categorias form {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.4rem;
+    }
+    .unir-categorias select {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 0.25rem 0.4rem;
+      font-size: 0.8rem;
+    }
+    .unir-categorias button {
+      border: none;
+      background: var(--marca);
+      color: white;
+      border-radius: 6px;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
 
     .lista-registros summary {
       cursor: pointer;
@@ -278,19 +302,22 @@
       right: 0;
       z-index: 5;
       display: flex;
+      flex-direction: column;
       gap: 0.3rem;
+      width: 11rem;
       margin-top: 0.2rem;
-      padding: 0.4rem;
+      padding: 0.5rem;
       background: white;
       border: 1px solid #ddd;
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     }
+    .editar-categoria form select,
     .editar-categoria form input[type=text] {
-      width: 7rem;
+      width: 100%;
       border: 1px solid #ddd;
       border-radius: 6px;
-      padding: 0.25rem 0.4rem;
+      padding: 0.3rem 0.4rem;
       font-size: 0.8rem;
     }
     .editar-categoria form button {
@@ -298,7 +325,7 @@
       background: var(--marca);
       color: white;
       border-radius: 6px;
-      padding: 0.25rem 0.6rem;
+      padding: 0.3rem 0.6rem;
       font-size: 0.8rem;
       cursor: pointer;
     }
@@ -375,7 +402,7 @@
     <a href="{{ url_for('index', periodo='mes') }}" class="{{ 'activo' if periodo == 'mes' else '' }}">Este mes</a>
   </div>
 
-  {% macro barra_categorias(items, titulo, vacio_texto) %}
+  {% macro barra_categorias(items, titulo, vacio_texto, tipo, categorias_existentes) %}
   <div class="categorias">
     <h3>{{ titulo }}</h3>
     {% if items %}
@@ -396,14 +423,34 @@
       </li>
       {% endfor %}
     </ul>
+    {% if categorias_existentes | length >= 2 %}
+    <details class="unir-categorias">
+      <summary>Unir categorías</summary>
+      <form method="post" action="{{ url_for('unir_categorias') }}">
+        <input type="hidden" name="tipo" value="{{ tipo }}">
+        <select name="desde">
+          {% for cat in categorias_existentes %}
+          <option value="{{ cat }}">{{ cat }}</option>
+          {% endfor %}
+        </select>
+        <span>en</span>
+        <select name="hacia">
+          {% for cat in categorias_existentes %}
+          <option value="{{ cat }}">{{ cat }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Unir</button>
+      </form>
+    </details>
+    {% endif %}
     {% else %}
     <p class="vacio">{{ vacio_texto }}</p>
     {% endif %}
   </div>
   {% endmacro %}
 
-  {{ barra_categorias(categorias_gasto, "Gastos por categoría", "Todavía no hay gastos.") }}
-  {{ barra_categorias(categorias_ingreso, "Ingresos por categoría", "Todavía no hay ingresos.") }}
+  {{ barra_categorias(categorias_gasto, "Gastos por categoría", "Todavía no hay gastos.", "gasto", categorias_existentes_gasto) }}
+  {{ barra_categorias(categorias_ingreso, "Ingresos por categoría", "Todavía no hay ingresos.", "ingreso", categorias_existentes_ingreso) }}
 
   <div class="tabs">
     {% for seccion in secciones %}
@@ -452,7 +499,13 @@
                 <details class="editar-categoria">
                   <summary>Categoría</summary>
                   <form method="post" action="{{ url_for('cambiar_categoria', entry_id=entry.id) }}">
-                    <input type="text" name="categoria" value="{{ entry.categoria or '' }}" placeholder="sin categoría">
+                    <select name="categoria_existente">
+                      <option value="" {{ "selected" if not entry.categoria else "" }}>Sin categoría</option>
+                      {% for cat in entry.categorias_existentes %}
+                      <option value="{{ cat }}" {{ "selected" if cat == entry.categoria else "" }}>{{ cat }}</option>
+                      {% endfor %}
+                    </select>
+                    <input type="text" name="categoria_nueva" placeholder="o escribí una nueva">
                     <button type="submit">Guardar</button>
                   </form>
                 </details>
