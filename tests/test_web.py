@@ -33,6 +33,27 @@ class TestIndex:
             assert b"pan" in respuesta.data
             assert "$5.000".encode("utf-8") in respuesta.data
 
+    def test_tarjeta_de_gasto_no_repite_el_tipo_entre_corchetes(self):
+        # Rediseño a pedido: dentro de la pestaña Gastos, repetir
+        # "[gasto]" en cada tarjeta era redundante.
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 pan"})
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert "[gasto]" not in html
+            assert "<strong>$5.000</strong>" in html
+
+    def test_tarjeta_de_gasto_tiene_boton_para_editar_categoria(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 pan"})
+            entry_id = load_entries()[0]["id"]
+
+            html = cliente().get("/").data.decode("utf-8")
+
+            assert f'action="/categoria/{entry_id}"' in html
+            assert "<summary>Categoría</summary>" in html
+
     def test_el_resumen_incluye_el_balance_de_toda_la_vida(self):
         # balance_hoy/balance_mes ya existían y no muestran un ingreso
         # viejo; el chip "Siempre" (balance_total) sí, porque no filtra
@@ -227,7 +248,10 @@ class TestAgregar:
             assert load_entries()[0]["categoria"] == "auto"
 
             html = cliente().get("/").data.decode("utf-8")
-            assert "#auto" in html
+            # La categoría se muestra como pastilla de color, con el
+            # nombre solo (sin el "#" de la captura).
+            assert 'class="pastilla"' in html
+            assert ">auto</span>" in html
 
     def test_gasto_invalido_no_guarda_nada_y_muestra_error(self):
         with archivo_temporal():
@@ -499,3 +523,49 @@ class TestHecha:
 
             assert "done" not in load_entries()[0]
             assert b"no es una tarea" in respuesta.data
+
+
+class TestCambiarCategoria:
+    def test_cambia_la_categoria_de_un_gasto(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+            entry_id = load_entries()[0]["id"]
+
+            respuesta = cliente().post(
+                f"/categoria/{entry_id}",
+                data={"categoria": "transporte"},
+                follow_redirects=True,
+            )
+
+            assert load_entries()[0]["categoria"] == "transporte"
+            assert "Categoría actualizada".encode("utf-8") in respuesta.data
+
+    def test_categoria_vacia_la_borra(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "gasto: 5000 nafta #auto"})
+            entry_id = load_entries()[0]["id"]
+
+            cliente().post(f"/categoria/{entry_id}", data={"categoria": ""})
+
+            assert "categoria" not in load_entries()[0]
+
+    def test_no_es_gasto_ni_ingreso(self):
+        with archivo_temporal():
+            cliente().post("/agregar", data={"texto": "tarea: comprar arroz"})
+            entry_id = load_entries()[0]["id"]
+
+            respuesta = cliente().post(
+                f"/categoria/{entry_id}",
+                data={"categoria": "auto"},
+                follow_redirects=True,
+            )
+
+            assert b"no es un gasto ni un ingreso" in respuesta.data
+
+    def test_id_inexistente(self):
+        with archivo_temporal():
+            respuesta = cliente().post(
+                "/categoria/999", data={"categoria": "auto"}, follow_redirects=True
+            )
+
+            assert respuesta.status_code == 200

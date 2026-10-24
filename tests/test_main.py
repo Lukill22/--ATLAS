@@ -43,6 +43,7 @@ from atlas.main import (
     parse_list_command,
     parse_reminder,
     save_entry,
+    set_entry_category,
 )
 
 
@@ -889,6 +890,58 @@ class TestMarkTaskDone:
     def test_id_inexistente(self):
         with archivo_temporal():
             assert mark_task_done(999) == "no_encontrado"
+
+
+class TestSetEntryCategory:
+    def test_cambia_la_categoria_de_un_gasto(self):
+        with archivo_temporal():
+            gasto = save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            assert set_entry_category(gasto["id"], "transporte") == "ok"
+            assert load_entries()[0]["categoria"] == "transporte"
+
+    def test_cambia_la_categoria_de_un_ingreso(self):
+        with archivo_temporal():
+            ingreso = save_entry("ingreso", "ingreso: 50000 uber")
+
+            assert set_entry_category(ingreso["id"], "freelance") == "ok"
+            assert load_entries()[0]["categoria"] == "freelance"
+
+    def test_categoria_vacia_la_borra(self):
+        with archivo_temporal():
+            gasto = save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            assert set_entry_category(gasto["id"], "") == "ok"
+            assert "categoria" not in load_entries()[0]
+
+    def test_categoria_con_solo_espacios_la_borra(self):
+        with archivo_temporal():
+            gasto = save_entry("gasto", "gasto: 5000 nafta #auto")
+
+            assert set_entry_category(gasto["id"], "   ") == "ok"
+            assert "categoria" not in load_entries()[0]
+
+    def test_no_es_gasto_ni_ingreso(self):
+        with archivo_temporal():
+            tarea = save_entry("tarea", "tarea: comprar arroz")
+
+            assert set_entry_category(tarea["id"], "auto") == "no_es_gasto_ni_ingreso"
+
+    def test_id_inexistente(self):
+        with archivo_temporal():
+            assert set_entry_category(999, "auto") == "no_encontrado"
+
+    def test_no_toca_otras_lineas(self):
+        with archivo_temporal():
+            primero = save_entry("gasto", "gasto: 5000 nafta #auto")
+            segundo = save_entry("gasto", "gasto: 2000 pan")
+
+            set_entry_category(primero["id"], "transporte")
+
+            entradas = load_entries()
+            assert entradas[0]["categoria"] == "transporte"
+            assert "categoria" not in entradas[1]
+            assert entradas[1]["id"] == segundo["id"]
 
 
 class TestParseIdCommand:

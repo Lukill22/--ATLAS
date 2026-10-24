@@ -242,7 +242,7 @@
     .tarjeta .meta { color: #999; font-size: 0.75rem; margin-top: 0.15rem; }
     .tarjeta .acciones { display: flex; gap: 0.3rem; flex-shrink: 0; white-space: nowrap; }
     .tarjeta .acciones form { display: inline; }
-    .tarjeta .acciones button, .tarjeta .acciones a {
+    .tarjeta .acciones button, .tarjeta .acciones a, .tarjeta .acciones summary {
       border: 1px solid #ddd;
       background: #fafafa;
       border-radius: 999px;
@@ -251,6 +251,56 @@
       cursor: pointer;
       text-decoration: none;
       color: #333;
+      list-style: none;
+    }
+    .tarjeta .acciones summary::-webkit-details-marker { display: none; }
+
+    /* Monto + descripción + pastilla de categoría (gasto/ingreso) */
+    .registro-monto strong { margin-right: 0.3rem; }
+    .pastilla {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      margin-left: 0.4rem;
+      white-space: nowrap;
+    }
+
+    /* Editar categoría: popover con position:absolute sobre un <details>
+       nativo, sin JavaScript. Se cierra al enviar el formulario (la
+       página se recarga) o al volver a tocar el resumen. */
+    .editar-categoria { position: relative; }
+    .editar-categoria[open] summary { border-radius: 999px 999px 0 0; }
+    .editar-categoria form {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      z-index: 5;
+      display: flex;
+      gap: 0.3rem;
+      margin-top: 0.2rem;
+      padding: 0.4rem;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .editar-categoria form input[type=text] {
+      width: 7rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 0.25rem 0.4rem;
+      font-size: 0.8rem;
+    }
+    .editar-categoria form button {
+      border: none;
+      background: var(--marca);
+      color: white;
+      border-radius: 6px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.8rem;
+      cursor: pointer;
     }
     .vacio { color: #aaa; font-size: 0.85rem; padding: 0.4rem 0.2rem; }
 
@@ -378,7 +428,17 @@
           {% for entry in seccion.entries %}
           <div class="tarjeta">
             <div class="contenido">
+              {% if entry.type in ["gasto", "ingreso"] and entry.amount is defined %}
+              <div class="registro registro-monto">
+                <strong>{{ format_money(entry.amount) }}</strong>
+                {% if entry.description and entry.description != "Sin descripción" %}{{ entry.description }}{% endif %}
+                {% if entry.categoria %}
+                <span class="pastilla" style="background: {{ entry.categoria_color }}; color: {{ entry.categoria_texto }};">{{ entry.categoria }}</span>
+                {% endif %}
+              </div>
+              {% else %}
               <div class="registro">{{ format_entry_summary(entry) }}</div>
+              {% endif %}
               <div class="meta">#{{ entry.id if entry.id is not none else "?" }} · {{ entry.created_at or "Fecha desconocida" }}</div>
             </div>
             <div class="acciones">
@@ -387,6 +447,15 @@
                 <form method="post" action="{{ url_for('hecha', entry_id=entry.id) }}">
                   <button type="submit">Hecha</button>
                 </form>
+                {% endif %}
+                {% if entry.type in ["gasto", "ingreso"] %}
+                <details class="editar-categoria">
+                  <summary>Categoría</summary>
+                  <form method="post" action="{{ url_for('cambiar_categoria', entry_id=entry.id) }}">
+                    <input type="text" name="categoria" value="{{ entry.categoria or '' }}" placeholder="sin categoría">
+                    <button type="submit">Guardar</button>
+                  </form>
+                </details>
                 {% endif %}
                 <a href="{{ url_for('confirmar_borrado', entry_id=entry.id) }}">Borrar</a>
               {% endif %}

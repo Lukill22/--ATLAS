@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.0
+
+- Rediseño de las tarjetas de gasto/ingreso en la web: el monto va primero y en negrita, ya no se repite el tipo entre corchetes (redundante dentro de la pestaña Gastos/Ingresos), y la categoría pasa de texto plano `#auto` a una pastilla de color — mismo color que usa en la barra apilada de "por categoría".
+- Nuevo: se puede cambiar (o borrar) la categoría de un gasto o ingreso ya guardado, con un botón "Categoría" en la tarjeta (sin JavaScript — un `<details>` que despliega un formulario chico). Antes solo se podía categorizar al crear el registro.
+- 13 pruebas nuevas (282 en total).
+
 ## 0.15.0
 
 - Nueva sección en la web: gastos e ingresos por categoría, como una barra horizontal apilada (no una torta — más fácil de comparar tamaños entre categorías) con una leyenda de monto y porcentaje por categoría. Respeta el filtro de período ya existente (Todo/Hoy/Este mes).

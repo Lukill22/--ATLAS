@@ -268,6 +268,17 @@ existente. Sin JavaScript — el hover usa el atributo nativo del
 navegador, y el valor ya está siempre visible en la leyenda. 269 pruebas
 automatizadas en total.
 
+### Sprint 15: rediseño de tarjetas y edición de categoría — terminado
+
+Dos ajustes de uso real: la tarjeta de gasto/ingreso repetía el tipo
+entre corchetes (redundante dentro de la pestaña) y mostraba la
+categoría como texto plano; ahora el monto va primero en negrita y la
+categoría es una pastilla de color (mismo color que la barra apilada).
+Además, `set_entry_category` permite corregir o borrar la categoría de
+un registro ya guardado — pendiente desde el Sprint 13 —, con un botón
+"Categoría" en la tarjeta (`<details>` + formulario, sin JavaScript).
+282 pruebas automatizadas en total.
+
 ## Funciones actuales
 
 ```text

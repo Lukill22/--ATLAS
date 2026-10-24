@@ -413,6 +413,25 @@ Fuera de alcance (a propósito, por ahora): filtrar el gráfico por una
 categoría puntual, modo oscuro (la web no lo tiene en ningún otro
 lado todavía).
 
+## Sprint 15 — Rediseño de tarjetas y edición de categoría (terminado)
+
+Problema que resuelve: al usar la web, dos cosas puntuales no cerraban —
+el diseño de la tarjeta de gasto/ingreso (repetía el tipo entre
+corchetes, la categoría era texto plano suelto) y no había forma de
+corregir la categoría de un registro ya guardado (quedaba pendiente
+desde el Sprint 13).
+
+Versión mínima:
+
+- [x] Tarjeta de gasto/ingreso: monto primero y en negrita, sin repetir "[gasto]"/"[ingreso]" (ya se sabe por la pestaña), categoría como pastilla de color (mismo color que la barra apilada).
+- [x] `set_entry_category(id, categoria)`: cambia o borra (con texto vacío) la categoría de un gasto/ingreso ya guardado.
+- [x] Botón "Categoría" en la tarjeta, sin JavaScript (`<details>` + formulario chico).
+- [x] Pruebas automatizadas.
+
+Fuera de alcance (a propósito, por ahora): editar otros campos (monto,
+descripción) de un registro ya guardado — por ahora la edición se
+limita a la categoría, que fue lo pedido.
+
 ---
 
 ## Futuro de Atlas

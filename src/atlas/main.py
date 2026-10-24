@@ -517,6 +517,43 @@ def mark_task_done(entry_id: int) -> str:
     return "no_encontrado"
 
 
+def set_entry_category(entry_id: int, categoria: str) -> str:
+    """Cambia a mano la categoría de un gasto o ingreso ya guardado.
+
+    Un "categoria" vacío (tras strip) borra la categoría en vez de
+    dejarla puesta a propósito: es la forma de "no quiero esta
+    categoría" sin tener que inventar un valor.
+
+    Devuelve "ok", "no_es_gasto_ni_ingreso" (el id existe pero no es de
+    un tipo con categoría) o "no_encontrado".
+    """
+
+    lines = _read_lines()
+
+    for index, line in enumerate(lines):
+        entry = _parse_line(line)
+
+        if entry is None or entry.get("id") != entry_id:
+            continue
+
+        if entry.get("type") not in {"gasto", "ingreso"}:
+            return "no_es_gasto_ni_ingreso"
+
+        categoria = categoria.strip()
+
+        if categoria:
+            entry["categoria"] = categoria
+        else:
+            entry.pop("categoria", None)
+
+        lines[index] = json.dumps(entry, ensure_ascii=False)
+        _write_lines(lines)
+
+        return "ok"
+
+    return "no_encontrado"
+
+
 def get_due_reminders(entries: list[dict], ahora: datetime) -> list[dict]:
     """Devuelve los recordatorios vencidos (due_at <= ahora) que todavía no
     se avisaron. Función pura (no lee archivos), para poder probarla con

@@ -53,6 +53,7 @@ from atlas.main import (  # noqa: E402
     load_entries,
     mark_task_done,
     save_entry,
+    set_entry_category,
 )
 
 # Paleta categórica validada (contraste y daltonismo) para los colores de
@@ -73,9 +74,23 @@ _GRIS_SIN_CATEGORIA = "#aba99f"
 _GRIS_OTRAS = "#7a7870"
 
 
+def _texto_legible_sobre(color_hex: str) -> str:
+    """Blanco o gris oscuro, el que mejor se lea sobre ese color de
+    fondo (luminancia aproximada, alcanza para una paleta chica y fija
+    como esta — no hace falta un cálculo de contraste WCAG completo).
+    """
+
+    color_hex = color_hex.lstrip("#")
+    r, g, b = (int(color_hex[i : i + 2], 16) for i in (0, 2, 4))
+    luminancia = 0.299 * r + 0.587 * g + 0.114 * b
+
+    return "#1a1a1a" if luminancia > 150 else "white"
+
+
 def _con_color_y_porcentaje(items: list[dict]) -> list[dict]:
-    """Agrega color y porcentaje a cada item de group_by_category, listos
-    para la barra apilada y su leyenda.
+    """Agrega color, color de texto y porcentaje a cada item de
+    group_by_category, listos para la barra apilada, su leyenda, y la
+    pastilla de categoría de cada tarjeta.
 
     El color de cada categoría real se asigna en orden alfabético (no por
     monto): así una categoría no cambia de color solo porque este mes
@@ -99,6 +114,7 @@ def _con_color_y_porcentaje(items: list[dict]) -> list[dict]:
         {
             **item,
             "color": color_por_categoria[item["categoria"]],
+            "texto": _texto_legible_sobre(color_por_categoria[item["categoria"]]),
             "pct": round(item["total"] / total * 100) if total else 0,
         }
         for item in items
@@ -148,6 +164,34 @@ def _render_index(pendiente=None, respuesta=None, respuesta_es_ayuda=False):
     # confiable, en vez de que Jinja2 trate el atributo como indefinido.
     entries = [dict(entry, id=entry.get("id")) for entry in entries]
 
+    categorias_gasto = _con_color_y_porcentaje(group_by_category(entries, "gasto"))
+    categorias_ingreso = _con_color_y_porcentaje(group_by_category(entries, "ingreso"))
+
+    # Mismo color en la tarjeta que en la barra apilada: una misma
+    # categoría se ve igual en todas partes de la página. Si una
+    # categoría puntual quedó plegada en "Otras" (más de 8 categorías
+    # reales), usa el gris de "Otras" como respaldo en vez de romper.
+    _gris_otras = (_GRIS_OTRAS, _texto_legible_sobre(_GRIS_OTRAS))
+    color_por_tipo = {
+        "gasto": {
+            item["categoria"]: (item["color"], item["texto"])
+            for item in categorias_gasto
+        },
+        "ingreso": {
+            item["categoria"]: (item["color"], item["texto"])
+            for item in categorias_ingreso
+        },
+    }
+
+    for entry in entries:
+        if entry.get("type") not in ("gasto", "ingreso"):
+            continue
+
+        categoria = entry.get("categoria") or "Sin categoría"
+        color, texto = color_por_tipo[entry["type"]].get(categoria, _gris_otras)
+        entry["categoria_color"] = color
+        entry["categoria_texto"] = texto
+
     secciones = []
 
     for tipo, etiqueta in _SECCIONES:
@@ -171,10 +215,8 @@ def _render_index(pendiente=None, respuesta=None, respuesta_es_ayuda=False):
         balance_semana=calculate_weekly_balance(load_entries(), date.today()),
         balance_mes=calculate_monthly_balance(load_entries(), date.today()),
         balance_total=calculate_total_balance(load_entries()),
-        categorias_gasto=_con_color_y_porcentaje(group_by_category(entries, "gasto")),
-        categorias_ingreso=_con_color_y_porcentaje(
-            group_by_category(entries, "ingreso")
-        ),
+        categorias_gasto=categorias_gasto,
+        categorias_ingreso=categorias_ingreso,
         format_money=format_money,
         format_entry_summary=format_entry_summary,
     )
@@ -306,6 +348,26 @@ def hecha(entry_id):
         flash(f"El registro #{entry_id} no es una tarea.", "error")
     else:
         flash(f"No encontré ninguna tarea con id #{entry_id}.", "error")
+
+    return redirect(url_for("index"))
+
+
+@app.route("/categoria/<int:entry_id>", methods=["POST"])
+def cambiar_categoria(entry_id):
+    """Cambia la categoría de un gasto o ingreso ya guardado.
+
+    Un campo vacío borra la categoría en vez de rechazar el pedido.
+    """
+
+    categoria = request.form.get("categoria", "")
+    resultado = set_entry_category(entry_id, categoria)
+
+    if resultado == "ok":
+        flash(f"Categoría actualizada para el registro #{entry_id}.", "ok")
+    elif resultado == "no_es_gasto_ni_ingreso":
+        flash(f"El registro #{entry_id} no es un gasto ni un ingreso.", "error")
+    else:
+        flash(f"No encontré ningún registro con id #{entry_id}.", "error")
 
     return redirect(url_for("index"))
 
