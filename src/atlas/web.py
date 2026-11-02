@@ -465,7 +465,11 @@ def main() -> None:
         "ver y borrar los datos mientras esto esté corriendo.\n"
     )
 
-    app.run(host="0.0.0.0", port=puerto, debug=True)
+    # debug=False a propósito: el modo debug de Flask abre una consola que
+    # ejecuta código en esta computadora, y con host="0.0.0.0" quedaría al
+    # alcance de cualquiera en la red. El costo es que el servidor no se
+    # reinicia solo al editar el código: hay que volver a arrancarlo.
+    app.run(host="0.0.0.0", port=puerto, debug=False)
 
 
 if __name__ == "__main__":

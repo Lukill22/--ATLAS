@@ -59,6 +59,21 @@ tanto en vez de que Telegram te llame a vos.
 3. Buscá tu bot en Telegram y escribile — entiende lo mismo que la terminal
    y la web (`gasto: 15000 nafta`, `ayuda`, `listar`, `balance dia`, etc.).
 
+**Quién puede usar el bot (importante):** Telegram deja que cualquiera le
+escriba a un bot si conoce su `@usuario`. Por eso Atlas solo le responde al chat
+que vos configures, y a los demás los ignora sin contestar nada. Se hace una vez:
+
+1. Arrancá el bot y escribile algo desde tu Telegram. Vas a ver en el log
+   (`logs/bot.log`) una línea como `ignoré un mensaje del chat 123456789`:
+   ese número es tu chat_id.
+2. Configuralo y reiniciá el bot:
+   ```powershell
+   setx ATLAS_TELEGRAM_CHAT_ID "123456789"
+   ```
+   (en bash: `export ATLAS_TELEGRAM_CHAT_ID="123456789"`)
+
+Mientras no esté configurado, el bot **no le responde a nadie** (falla cerrado).
+
 **Recordatorios con alarma:** `recordatorio: 19/10 08:00 sacar la basura`
 guarda un aviso para esa fecha y hora. **Solo el bot de Telegram puede
 avisarte de verdad** (revisa recordatorios vencidos mientras está corriendo)
@@ -82,6 +97,7 @@ solo al iniciar sesión en Windows, sin abrir ninguna terminal:
    repetirlo nunca más, ni escribirlo en ningún archivo):
    ```powershell
    setx ATLAS_TELEGRAM_TOKEN "el-token-que-te-dio-botfather"
+   setx ATLAS_TELEGRAM_CHAT_ID "tu-chat-id"
    ```
 2. Registrá la tarea programada (una sola vez):
    ```powershell

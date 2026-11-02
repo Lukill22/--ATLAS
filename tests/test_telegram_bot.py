@@ -5,6 +5,10 @@ y usan el mismo archivo_temporal() de conftest.py, así nunca tocan
 data/entries.jsonl real.
 """
 
+import contextlib
+import io
+import os
+from contextlib import contextmanager
 from datetime import datetime
 from unittest.mock import patch
 
@@ -305,3 +309,100 @@ class TestBalanceDiario:
 
             enviar.assert_not_called()
             assert load_entries()[0]["last_sent_date"] == "2026-10-19"
+
+
+@contextmanager
+def chat_autorizado(valor):
+    """Fija ATLAS_TELEGRAM_CHAT_ID durante la prueba (None = sin configurar)."""
+
+    entorno = {} if valor is None else {"ATLAS_TELEGRAM_CHAT_ID": str(valor)}
+
+    with patch.dict(os.environ, entorno):
+        if valor is None:
+            os.environ.pop("ATLAS_TELEGRAM_CHAT_ID", None)
+
+        bot._unauthorized_logged.clear()
+        yield
+        bot._unauthorized_logged.clear()
+
+
+def novedad_mensaje(chat_id, texto):
+    return {"update_id": 1, "message": {"chat": {"id": chat_id}, "text": texto}}
+
+
+def novedad_boton(chat_id, data):
+    return {
+        "update_id": 2,
+        "callback_query": {
+            "id": "abc",
+            "data": data,
+            "message": {"chat": {"id": chat_id}},
+        },
+    }
+
+
+class TestAutorizacion:
+    """Solo el chat configurado puede usar el bot; los demás se ignoran."""
+
+    def test_mensaje_del_chat_autorizado_se_procesa(self):
+        with chat_autorizado(123), patch.object(bot, "process_text") as procesar:
+            bot.handle_update(novedad_mensaje(123, "balance dia"))
+
+            procesar.assert_called_once_with(123, "balance dia")
+
+    def test_mensaje_de_otro_chat_se_ignora_sin_responder(self):
+        with chat_autorizado(123), patch.object(bot, "process_text") as procesar:
+            with patch.object(bot, "send_message") as enviar:
+                bot.handle_update(novedad_mensaje(999, "total gastos"))
+
+            procesar.assert_not_called()
+            enviar.assert_not_called()
+
+    def test_sin_configurar_no_le_responde_a_nadie(self):
+        with chat_autorizado(None), patch.object(bot, "process_text") as procesar:
+            bot.handle_update(novedad_mensaje(123, "listar"))
+
+            procesar.assert_not_called()
+
+    def test_configuracion_invalida_cuenta_como_sin_configurar(self):
+        with chat_autorizado("no-es-un-numero"), patch.object(bot, "process_text") as p:
+            bot.handle_update(novedad_mensaje(123, "listar"))
+
+            p.assert_not_called()
+
+    def test_boton_de_otro_chat_no_borra_nada(self):
+        # El caso más peligroso: un toque de "Sí, borrar" de un chat ajeno.
+        with archivo_temporal(), chat_autorizado(123):
+            entry = save_entry("nota", "no me borres")
+
+            with patch.object(bot, "send_message"), patch.object(bot, "_call"):
+                bot.handle_update(novedad_boton(999, f"borrar_si:{entry['id']}"))
+
+            assert len(load_entries()) == 1
+
+    def test_boton_del_chat_autorizado_se_procesa(self):
+        with chat_autorizado(123), patch.object(bot, "process_callback") as procesar:
+            novedad = novedad_boton(123, "borrar_no")
+            bot.handle_update(novedad)
+
+            procesar.assert_called_once_with(novedad["callback_query"])
+
+    def test_novedad_sin_chat_se_ignora(self):
+        with chat_autorizado(123), patch.object(bot, "process_text") as procesar:
+            bot.handle_update({"update_id": 3, "edited_message": {}})
+
+            procesar.assert_not_called()
+
+    def test_el_aviso_muestra_el_chat_id_pero_no_el_contenido_y_una_sola_vez(self):
+        with chat_autorizado(123):
+            salida = io.StringIO()
+
+            with contextlib.redirect_stdout(salida):
+                bot.handle_update(novedad_mensaje(999, "mi clave es hunter2"))
+                bot.handle_update(novedad_mensaje(999, "otra vez"))
+
+            texto = salida.getvalue()
+            assert "999" in texto
+            assert "ATLAS_TELEGRAM_CHAT_ID=999" in texto
+            assert "hunter2" not in texto
+            assert texto.count("ignoré un mensaje") == 1

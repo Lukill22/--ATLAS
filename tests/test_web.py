@@ -652,3 +652,19 @@ class TestUnirCategorias:
             html = cliente().get("/").data.decode("utf-8")
 
             assert "Unir categorías" not in html
+
+
+class TestArranque:
+    def test_el_servidor_no_arranca_en_modo_debug(self):
+        # debug=True abre una consola que ejecuta código en esta computadora;
+        # con host="0.0.0.0" quedaría al alcance de toda la red.
+        from unittest.mock import patch
+
+        from atlas import web
+
+        with patch.object(web.app, "run") as correr, patch.object(
+            web, "_lan_ip", return_value=None
+        ):
+            web.main()
+
+        assert correr.call_args.kwargs["debug"] is False

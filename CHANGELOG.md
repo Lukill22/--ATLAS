@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.1
+
+- Seguridad: el bot de Telegram ahora solo le responde al chat configurado en `ATLAS_TELEGRAM_CHAT_ID`. Antes le respondía a cualquiera que conociera su `@usuario`: podía ver los gastos con `balance dia` o `listar`, y borrar registros. Los mensajes y botones de otros chats se ignoran sin responder, y se deja en el log el id del chat (nunca el contenido). Si la variable falta, el bot no responde a nadie.
+- Seguridad: la interfaz web ya no arranca con `debug=True`. Con `host="0.0.0.0"`, el modo debug de Flask dejaba una consola que ejecuta código al alcance de toda la red.
+- 9 pruebas nuevas.
+
 ## 0.17.0
 
 - Las categorías se normalizan a minúsculas automáticamente al guardarse (captura, inferencia automática, y edición manual): "Nafta" y "nafta" eran dos categorías distintas sin ninguna forma de notarlo, encontrado revisando datos reales.

@@ -59,6 +59,85 @@ TOKEN = os.environ.get("ATLAS_TELEGRAM_TOKEN")
 _pending_typo_by_chat: dict[int, tuple[str, str]] = {}
 
 
+# Chats autorizados a usar el bot. Telegram deja que CUALQUIER persona le
+# escriba a un bot si conoce su @usuario, así que sin esto cualquiera podría
+# ver los gastos o borrar registros. Se configura con la variable de entorno
+# ATLAS_TELEGRAM_CHAT_ID (el id numérico del chat del dueño). Si falta o no
+# es un número, el bot NO le responde a nadie: es más seguro fallar cerrado.
+_unauthorized_logged: set[int] = set()
+
+
+def _allowed_chat_id() -> int | None:
+    """Lee el chat autorizado desde el entorno, o None si no está bien configurado."""
+
+    value = os.environ.get("ATLAS_TELEGRAM_CHAT_ID", "").strip()
+
+    try:
+        return int(value)
+
+    except ValueError:
+        return None
+
+
+def is_authorized(chat_id: int) -> bool:
+    """True solo si el chat es exactamente el configurado como autorizado."""
+
+    allowed = _allowed_chat_id()
+
+    return allowed is not None and chat_id == allowed
+
+
+def _log_unauthorized(chat_id: int) -> None:
+    """Deja constancia (una sola vez por chat) de un mensaje ignorado.
+
+    Muestra solo el id del chat, nunca el contenido del mensaje, y es la
+    forma de averiguar tu propio chat_id la primera vez que lo configurás.
+    """
+
+    if chat_id in _unauthorized_logged:
+        return
+
+    _unauthorized_logged.add(chat_id)
+    print(
+        f"Atlas: ignoré un mensaje del chat {chat_id}, que no está autorizado. "
+        f"Si es tu chat, configurá ATLAS_TELEGRAM_CHAT_ID={chat_id} y reiniciá el bot."
+    )
+
+
+def _chat_id_of(update: dict) -> int | None:
+    """Id del chat de una novedad de Telegram (mensaje o toque de botón)."""
+
+    if "callback_query" in update:
+        return update["callback_query"].get("message", {}).get("chat", {}).get("id")
+
+    if "message" in update:
+        return update["message"].get("chat", {}).get("id")
+
+    return None
+
+
+def handle_update(update: dict) -> None:
+    """Procesa una novedad de Telegram, pero solo si viene del chat autorizado.
+
+    Es el único camino por el que entran mensajes y botones al bot: una
+    novedad de un chat no autorizado se descarta sin responder nada.
+    """
+
+    chat_id = _chat_id_of(update)
+
+    if chat_id is None:
+        return
+
+    if not is_authorized(chat_id):
+        _log_unauthorized(chat_id)
+        return
+
+    if "callback_query" in update:
+        process_callback(update["callback_query"])
+    elif "text" in update.get("message", {}):
+        process_text(chat_id, update["message"]["text"])
+
+
 def _api_url(metodo: str) -> str:
     return f"https://api.telegram.org/bot{TOKEN}/{metodo}"
 
@@ -285,6 +364,14 @@ def run() -> None:
         )
         return
 
+    if _allowed_chat_id() is None:
+        print(
+            "Atlas: ATENCIÓN: falta ATLAS_TELEGRAM_CHAT_ID (o no es un número). "
+            "Por seguridad el bot NO le va a responder a nadie hasta que lo "
+            "configures. Escribile algo al bot desde tu Telegram: acá en el log "
+            "va a aparecer tu chat_id y qué variable configurar."
+        )
+
     print("Atlas: bot de Telegram escuchando. Ctrl+C para salir.")
     offset = 0
 
@@ -308,12 +395,7 @@ def run() -> None:
             offset = update["update_id"] + 1
 
             try:
-                if "callback_query" in update:
-                    process_callback(update["callback_query"])
-                elif "message" in update and "text" in update["message"]:
-                    process_text(
-                        update["message"]["chat"]["id"], update["message"]["text"]
-                    )
+                handle_update(update)
 
             except Exception as error:  # noqa: BLE001 - no tirar abajo el bot
                 # Un error procesando ESTE mensaje (ej. un fallo de red
