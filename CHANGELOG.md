@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.17.2
+
+- Se dividió `main.py` (de 1674 a unas 970 líneas): la lógica pura se movió a `parsing.py`, `calculations.py` y `formatting.py`. El código se movió sin reescribirlo (se verificó que cada función es idéntica a la original) y `main.py` sigue exponiendo los mismos nombres, así que `web.py`, `telegram_bot.py` y las pruebas no cambiaron.
+- `main.py` agrega `src/` al path cuando se ejecuta como script, igual que `web.py`; sin eso, `python src/atlas/main.py` fallaba con `ModuleNotFoundError` después de la división.
+- Las dos pruebas de `filter_by_period` que simulaban la fecha ahora parchean `calculations.date` (la función cambió de módulo).
+- Prueba nueva que arranca Atlas como script, como dice el README: ninguna otra lo cubría porque `conftest.py` agrega `src/` al path.
+- Pendiente a propósito: separar lo que toca el archivo de datos (`storage.py`).
+
 ## 0.17.1
 
 - Seguridad: el bot de Telegram ahora solo le responde al chat configurado en `ATLAS_TELEGRAM_CHAT_ID`. Antes le respondía a cualquiera que conociera su `@usuario`: podía ver los gastos con `balance dia` o `listar`, y borrar registros. Los mensajes y botones de otros chats se ignoran sin responder, y se deja en el log el id del chat (nunca el contenido). Si la variable falta, el bot no responde a nadie.

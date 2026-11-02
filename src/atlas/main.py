@@ -1,10 +1,47 @@
-from contextlib import suppress
-from datetime import date, datetime, timedelta
-from pathlib import Path
 import difflib
 import json
 import os
-import re
+import sys
+from contextlib import suppress
+from datetime import date, datetime
+from pathlib import Path
+
+# Si se ejecuta como script (`python src/atlas/main.py`) en vez de módulo, el
+# paquete `atlas` todavía no está en sys.path. Se agrega antes de importar los
+# módulos hermanos (parsing, calculations, formatting). Mismo truco que web.py.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from atlas.calculations import (  # noqa: E402, F401
+    calculate_balance,
+    calculate_monthly_balance,
+    calculate_total_balance,
+    calculate_total_expenses,
+    calculate_total_income,
+    calculate_weekly_balance,
+    filter_by_period,
+    get_due_daily_balances,
+    get_due_reminders,
+    group_by_category,
+)
+from atlas.formatting import (  # noqa: E402, F401
+    HELP_TEXT,
+    format_balance_summary,
+    format_entry_summary,
+    format_money,
+    format_saved_message,
+)
+from atlas.parsing import (  # noqa: E402, F401
+    build_corrected_text,
+    detect_entry_type,
+    detect_probable_typo,
+    parse_daily_balance_config,
+    parse_expense,
+    parse_id_command,
+    parse_income,
+    parse_list_command,
+    parse_reminder,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -13,194 +50,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_FILE = Path(
     os.environ.get("ATLAS_DATA_FILE", PROJECT_ROOT / "data" / "entries.jsonl")
 )
-
-# Un monto es una secuencia de dígitos, opcionalmente agrupada de a 3 con
-# "." o "," como separador de miles (ej. "15000", "15.000", "1.500.000").
-_AMOUNT_PATTERN = re.compile(r"^\d{1,3}([.,]\d{3})*$|^\d+$")
-
-
-def _parse_amount(amount_text: str) -> int | None:
-    """Convierte un texto de monto a entero, o None si no es válido.
-
-    Solo acepta "." o "," como separador de miles. Un número como "15.5"
-    no se acepta: es ambiguo (¿mil quinientos truncado? ¿15 con 5 decimales?)
-    y Atlas trabaja siempre en pesos enteros.
-    """
-
-    if not _AMOUNT_PATTERN.match(amount_text):
-        return None
-
-    return int(amount_text.replace(".", "").replace(",", ""))
-
-
-def _parse_amount_entry(text: str, prefix: str) -> dict | None:
-    """Extrae monto, descripción y categoría opcional de un texto con la
-    forma "<prefijo> monto desc #categoria".
-
-    Lo comparten gastos e ingresos: ambos tienen el mismo formato. También
-    acepta el orden invertido ("<prefijo> desc monto", ej. "gasto: nafta
-    12000"): es un error real y repetido — así se habla en la vida real,
-    diciendo primero de qué es el gasto y después cuánto fue.
-
-    La categoría es opcional, va al final separada por "#" (puede tener
-    varias palabras, ej. "#gastos fijos"), y es la única parte de este
-    formato donde "#" tiene un significado especial: en cualquier otro
-    lugar del texto, "#" es un caracter común.
-
-    La categoría se guarda siempre en minúsculas: sin esto, "Nafta" y
-    "nafta" quedan como dos categorías distintas sin ninguna forma de
-    notar el error hasta que ya hay registros repartidos entre las dos.
-    """
-
-    if not text.lower().startswith(prefix):
-        return None
-
-    content = text[len(prefix) :].strip()
-
-    if not content:
-        return None
-
-    category = None
-
-    if "#" in content:
-        content, _, category_text = content.partition("#")
-        content = content.strip()
-        category = category_text.strip().lower() or None
-
-        if not content:
-            return None
-
-    parts = content.split(maxsplit=1)
-    amount = _parse_amount(parts[0])
-
-    if amount is not None:
-        description = parts[1] if len(parts) > 1 else "Sin descripción"
-        result = {"amount": amount, "description": description}
-
-        if category:
-            result["categoria"] = category
-
-        return result
-
-    palabras = content.split()
-
-    if len(palabras) < 2:
-        return None
-
-    amount = _parse_amount(palabras[-1])
-
-    if amount is None:
-        return None
-
-    result = {
-        "amount": amount,
-        "description": " ".join(palabras[:-1]),
-    }
-
-    if category:
-        result["categoria"] = category
-
-    return result
-
-
-def parse_expense(text: str) -> dict | None:
-    """Extrae monto y descripción desde un texto de gasto.
-
-    Formato esperado:
-    gasto: 15000 nafta
-    """
-
-    return _parse_amount_entry(text, "gasto:")
-
-
-def parse_income(text: str) -> dict | None:
-    """Extrae monto y descripción desde un texto de ingreso.
-
-    Formato esperado:
-    ingreso: 100000 uber
-    """
-
-    return _parse_amount_entry(text, "ingreso:")
-
-
-# "19/10 08:00 texto" o "19/10/2026 08:00 texto" (año opcional, usa el
-# actual si falta). Fecha y hora con formato fijo, sin adivinar, igual
-# que el resto de Atlas.
-_REMINDER_PATTERN = re.compile(
-    r"^(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\s+(\d{1,2}):(\d{2})\s+(.+)$"
-)
-
-
-def parse_reminder(text: str) -> dict | None:
-    """Extrae fecha, hora y descripción desde un texto de recordatorio.
-
-    Formato esperado:
-    recordatorio: 19/10 08:00 sacar la basura
-    """
-
-    if not text.lower().startswith("recordatorio:"):
-        return None
-
-    content = text[len("recordatorio:") :].strip()
-
-    if not content:
-        return None
-
-    match = _REMINDER_PATTERN.match(content)
-
-    if match is None:
-        return None
-
-    dia, mes, anio, hora, minuto, descripcion = match.groups()
-
-    try:
-        due_at = datetime(
-            int(anio) if anio else date.today().year,
-            int(mes),
-            int(dia),
-            int(hora),
-            int(minuto),
-        )
-    except ValueError:
-        return None
-
-    return {
-        "due_at": due_at.isoformat(timespec="minutes"),
-        "description": descripcion.strip(),
-        "notified": False,
-    }
-
-
-# "23:00" (hora y minuto con 2 dígitos). Formato fijo, igual que el resto
-# de Atlas: no intenta adivinar "a las 11 de la noche" ni variantes así.
-_DAILY_BALANCE_PATTERN = re.compile(r"^(\d{1,2}):(\d{2})$")
-
-
-def parse_daily_balance_config(text: str) -> str | None:
-    """Extrae la hora desde un texto de configuración de balance diario.
-
-    Formato esperado:
-    balance diario: 23:00
-
-    Devuelve la hora normalizada ("23:00"), o None si no matchea o la hora
-    no es válida (ej. "25:00").
-    """
-
-    if not text.lower().startswith("balance diario:"):
-        return None
-
-    content = text[len("balance diario:") :].strip()
-    match = _DAILY_BALANCE_PATTERN.match(content)
-
-    if match is None:
-        return None
-
-    hora, minuto = match.groups()
-
-    if not (0 <= int(hora) <= 23 and 0 <= int(minuto) <= 59):
-        return None
-
-    return f"{int(hora):02d}:{minuto}"
 
 
 def _next_id(entries: list[dict]) -> int:
@@ -596,34 +445,6 @@ def merge_categories(entry_type: str, desde: str, hacia: str) -> int:
     return cambiados
 
 
-def get_due_reminders(entries: list[dict], ahora: datetime) -> list[dict]:
-    """Devuelve los recordatorios vencidos (due_at <= ahora) que todavía no
-    se avisaron. Función pura (no lee archivos), para poder probarla con
-    una fecha fija en vez de datetime.now().
-    """
-
-    vencidos = []
-
-    for entry in entries:
-        if entry.get("type") != "recordatorio" or entry.get("notified"):
-            continue
-
-        due_at = entry.get("due_at")
-
-        if not due_at:
-            continue
-
-        try:
-            due = datetime.fromisoformat(due_at)
-        except ValueError:
-            continue
-
-        if due <= ahora:
-            vencidos.append(entry)
-
-    return vencidos
-
-
 def mark_reminder_notified(entry_id: int) -> bool:
     """Marca un recordatorio como ya avisado. True si lo encontró."""
 
@@ -692,38 +513,6 @@ def set_daily_balance_config(hora: str, chat_id: int | None) -> dict:
     return entry
 
 
-def get_due_daily_balances(entries: list[dict], ahora: datetime) -> list[dict]:
-    """Devuelve las configuraciones de balance diario a las que ya les toca
-    avisar: la hora configurada ya pasó hoy y todavía no se mandó hoy.
-    Función pura, para poder probarla con una fecha fija.
-    """
-
-    pendientes = []
-    hoy = ahora.date().isoformat()
-
-    for entry in entries:
-        if entry.get("type") != "balance_diario":
-            continue
-
-        if entry.get("last_sent_date") == hoy:
-            continue
-
-        hora_texto = entry.get("hora")
-
-        if not hora_texto:
-            continue
-
-        try:
-            hora_objetivo = datetime.strptime(hora_texto, "%H:%M").time()
-        except ValueError:
-            continue
-
-        if ahora.time() >= hora_objetivo:
-            pendientes.append(entry)
-
-    return pendientes
-
-
 def mark_daily_balance_sent(entry_id: int, fecha: str) -> bool:
     """Marca un balance diario como ya enviado hoy (fecha ISO). True si lo
     encontró.
@@ -747,254 +536,6 @@ def mark_daily_balance_sent(entry_id: int, fecha: str) -> bool:
         return True
 
     return False
-
-
-def parse_id_command(command: str, keyword: str) -> int | None:
-    """Extrae un id numérico de un comando tipo "borrar 3".
-
-    None si el comando no empieza con esa palabra o lo que sigue no es un
-    número entero.
-    """
-
-    prefix = f"{keyword} "
-
-    if not command.startswith(prefix):
-        return None
-
-    id_text = command[len(prefix) :].strip()
-
-    if not id_text.isdigit():
-        return None
-
-    return int(id_text)
-
-
-def detect_entry_type(text: str) -> str:
-    """Detecta el tipo de registro según el comienzo del texto."""
-
-    lowered_text = text.lower()
-
-    if lowered_text.startswith("gasto:"):
-        return "gasto"
-
-    if lowered_text.startswith("ingreso:"):
-        return "ingreso"
-
-    if lowered_text.startswith("tarea:"):
-        return "tarea"
-
-    if lowered_text.startswith("idea:"):
-        return "idea"
-
-    if lowered_text.startswith("recordatorio:"):
-        return "recordatorio"
-
-    if lowered_text.startswith("balance diario:"):
-        return "balance_diario"
-
-    return "nota"
-
-
-# Variantes sin ":" o en plural de cada prefijo conocido. Se usan solo para
-# avisar de un probable error de tipeo, nunca para decidir el tipo real:
-# "gasto:" sigue siendo el único formato válido.
-_PROBABLE_PREFIX = {
-    "gasto": "gasto:",
-    "gastos": "gasto:",
-    "ingreso": "ingreso:",
-    "ingresos": "ingreso:",
-    "tarea": "tarea:",
-    "tareas": "tarea:",
-    "idea": "idea:",
-    "ideas": "idea:",
-    "recordatorio": "recordatorio:",
-    "recordatorios": "recordatorio:",
-}
-
-# Palabra base de cada prefijo, para buscar errores de tipeo más sueltos
-# (ej. "gsato", "trea") con similitud de texto.
-_KNOWN_KEYWORDS = {
-    "gasto": "gasto:",
-    "ingreso": "ingreso:",
-    "tarea": "tarea:",
-    "idea": "idea:",
-    "recordatorio": "recordatorio:",
-}
-
-# Por debajo de esto empiezan a aparecer falsos positivos con palabras
-# reales cortas ("área" se parece a "tarea", "vida" a "idea"). El costo de
-# un falso positivo es bajo: Atlas pregunta antes de guardar, así que un
-# "no" lo resuelve sin perder nada.
-_TYPO_SIMILARITY_CUTOFF = 0.8
-
-
-def detect_probable_typo(text: str) -> str | None:
-    """Si el texto parece un intento fallido de usar un prefijo conocido
-    (sin ":", en plural, con algún error de tipeo), devuelve el formato
-    correcto sugerido.
-
-    Devuelve None si no hay ningún prefijo conocido parecido.
-    """
-
-    first_word = text.strip().split(maxsplit=1)[0].lower().rstrip(":")
-
-    exact_match = _PROBABLE_PREFIX.get(first_word)
-
-    if exact_match is not None:
-        return exact_match
-
-    close_matches = difflib.get_close_matches(
-        first_word, _KNOWN_KEYWORDS.keys(), n=1, cutoff=_TYPO_SIMILARITY_CUTOFF
-    )
-
-    if close_matches:
-        return _KNOWN_KEYWORDS[close_matches[0]]
-
-    return None
-
-
-def build_corrected_text(text: str, correct_prefix: str) -> str:
-    """Reconstruye el texto reemplazando la primera palabra por el prefijo
-    correcto (ej. "gasto 15000 nafta" + "gasto:" -> "gasto: 15000 nafta").
-    """
-
-    parts = text.strip().split(maxsplit=1)
-    rest = parts[1] if len(parts) > 1 else ""
-
-    return f"{correct_prefix} {rest}".strip()
-
-
-# Palabra tal como se escribe -> tipo interno, para parse_list_command.
-# Acepta tanto el plural ("listar gastos") como el singular ("listar
-# gasto"): caso real repetido, se escribe en singular sin pensarlo.
-_LIST_TYPE_WORDS = {
-    "gasto": "gasto",
-    "gastos": "gasto",
-    "ingreso": "ingreso",
-    "ingresos": "ingreso",
-    "tarea": "tarea",
-    "tareas": "tarea",
-    "idea": "idea",
-    "ideas": "idea",
-    "nota": "nota",
-    "notas": "nota",
-    "recordatorio": "recordatorio",
-    "recordatorios": "recordatorio",
-}
-
-_PERIOD_WORDS = {"hoy", "mes"}
-
-
-def parse_list_command(command: str) -> dict | None:
-    """Interpreta un comando "listar [tipo] [período]".
-
-    Ejemplos válidos: "listar", "listar gastos", "listar hoy",
-    "listar tareas mes" (el orden tipo-período es fijo). Devuelve None si
-    command no empieza con "listar" o tiene alguna palabra que no es ni un
-    tipo ni un período conocido.
-
-    Tolera ":" de más al final de "listar" o de cualquier palabra (ej.
-    "listar gastos:"), porque es un error natural de cometer: el resto de
-    Atlas sí usa ":" (gasto:, tarea:), así que es fácil escribirlo de más
-    por costumbre.
-    """
-
-    command = command.rstrip(":")
-
-    if command != "listar" and not command.startswith("listar "):
-        return None
-
-    palabras = command[len("listar") :].split()
-
-    if len(palabras) > 2:
-        return None
-
-    entry_type: str | None = None
-    period: str | None = None
-
-    for palabra in palabras:
-        palabra = palabra.rstrip(":")
-
-        if palabra in _LIST_TYPE_WORDS and entry_type is None:
-            entry_type = _LIST_TYPE_WORDS[palabra]
-        elif palabra in _PERIOD_WORDS and period is None:
-            period = palabra
-        else:
-            return None
-
-    return {"entry_type": entry_type, "period": period}
-
-
-def filter_by_period(entries: list[dict], period: str | None) -> list[dict]:
-    """Filtra registros cuyo "created_at" caiga en el período dado.
-
-    period es "hoy", "mes", o None (no filtra nada). Usa la fecha actual,
-    igual que calculate_balance/calculate_monthly_balance.
-    """
-
-    if period is None:
-        return entries
-
-    today = date.today()
-    prefix = today.isoformat() if period == "hoy" else today.strftime("%Y-%m")
-
-    return [
-        entry
-        for entry in entries
-        if str(entry.get("created_at", "")).startswith(prefix)
-    ]
-
-
-def format_money(amount: int) -> str:
-    """Formatea un número como monto en pesos argentinos."""
-
-    sign = "-" if amount < 0 else ""
-
-    return f"{sign}${abs(amount):,.0f}".replace(",", ".")
-
-
-def format_entry_summary(entry: dict) -> str:
-    """Describe un registro en una línea legible (sin id ni fecha).
-
-    Lo usan tanto show_entries() (terminal) como la interfaz web, para que
-    las dos muestren exactamente lo mismo sin duplicar esta lógica.
-    """
-
-    category = entry.get("type", "nota")
-    text = entry.get("text", "")
-
-    if category in {"gasto", "ingreso"} and "amount" in entry:
-        amount = format_money(entry["amount"])
-        description = entry.get("description", "Sin descripción")
-        resumen = f"[{category}] {amount} - {description}"
-
-        if entry.get("categoria"):
-            resumen += f" #{entry['categoria']}"
-
-        return resumen
-
-    if category == "tarea":
-        estado = "[x]" if entry.get("done") else "[ ]"
-        return f"{estado} [tarea] {text}"
-
-    if category == "recordatorio" and "due_at" in entry:
-        try:
-            fecha_legible = datetime.fromisoformat(entry["due_at"]).strftime(
-                "%d/%m %H:%M"
-            )
-        except ValueError:
-            fecha_legible = entry["due_at"]
-
-        estado = "✅" if entry.get("notified") else "⏰"
-        descripcion = entry.get("description", text)
-        return f"{estado} [recordatorio] {fecha_legible} - {descripcion}"
-
-    if category == "balance_diario" and "hora" in entry:
-        enviado_hoy = entry.get("last_sent_date") == date.today().isoformat()
-        estado = "✅ enviado hoy" if enviado_hoy else "⏰ pendiente"
-        return f"{estado} [balance diario] {entry['hora']}"
-
-    return f"[{category}] {text}"
 
 
 def show_entries(entry_type: str | None = None, period: str | None = None) -> None:
@@ -1027,23 +568,6 @@ def show_entries(entry_type: str | None = None, period: str | None = None) -> No
     print()
 
 
-def calculate_total_expenses(entries: list[dict]) -> int:
-    """Suma todos los gastos de la lista dada. Función pura, sin I/O."""
-
-    total = 0
-
-    for entry in entries:
-        if entry.get("type") != "gasto":
-            continue
-
-        amount = entry.get("amount")
-
-        if isinstance(amount, int | float):
-            total += amount
-
-    return total
-
-
 def show_total_expenses() -> None:
     """Calcula y muestra el total de gastos registrados."""
 
@@ -1052,190 +576,12 @@ def show_total_expenses() -> None:
     print(f"Atlas: Gastaste {format_money(total)} en total.")
 
 
-def calculate_total_income(entries: list[dict]) -> int:
-    """Suma todos los ingresos de la lista dada. Función pura, sin I/O."""
-
-    total = 0
-
-    for entry in entries:
-        if entry.get("type") != "ingreso":
-            continue
-
-        amount = entry.get("amount")
-
-        if isinstance(amount, int | float):
-            total += amount
-
-    return total
-
-
 def show_total_income() -> None:
     """Calcula y muestra el total de ingresos registrados."""
 
     total = calculate_total_income(load_entries())
 
     print(f"Atlas: Ingresaste {format_money(total)} en total.")
-
-
-# La paleta de colores validada (contraste y daltonismo) solo tiene 8
-# colores de identidad; más categorías reales que esto no tiene sentido
-# visualmente (se volverían indistinguibles), así que las más chicas se
-# juntan en "Otras" en vez de inventar un noveno color.
-_MAX_CATEGORIAS_CON_COLOR_PROPIO = 8
-
-
-def group_by_category(entries: list[dict], entry_type: str) -> list[dict]:
-    """Agrupa los gastos o ingresos por categoría y suma los montos.
-
-    Los registros sin categoría se agrupan en "Sin categoría". Si hay más
-    de 8 categorías reales, las más chicas (por monto) se juntan en
-    "Otras". Devuelve una lista de {"categoria": ..., "total": ...},
-    ordenada de mayor a menor monto.
-    """
-
-    totales: dict[str, int] = {}
-
-    for entry in entries:
-        if entry.get("type") != entry_type:
-            continue
-
-        amount = entry.get("amount")
-
-        if not isinstance(amount, int | float):
-            continue
-
-        categoria = entry.get("categoria") or "Sin categoría"
-        totales[categoria] = totales.get(categoria, 0) + amount
-
-    items = sorted(
-        (
-            {"categoria": categoria, "total": total}
-            for categoria, total in totales.items()
-        ),
-        key=lambda item: item["total"],
-        reverse=True,
-    )
-
-    categorias_reales = [item for item in items if item["categoria"] != "Sin categoría"]
-
-    if len(categorias_reales) <= _MAX_CATEGORIAS_CON_COLOR_PROPIO:
-        return items
-
-    principales = categorias_reales[:_MAX_CATEGORIAS_CON_COLOR_PROPIO]
-    resto = categorias_reales[_MAX_CATEGORIAS_CON_COLOR_PROPIO:]
-    sin_categoria = [item for item in items if item["categoria"] == "Sin categoría"]
-
-    resultado = (
-        principales
-        + [{"categoria": "Otras", "total": sum(item["total"] for item in resto)}]
-        + sin_categoria
-    )
-
-    return sorted(resultado, key=lambda item: item["total"], reverse=True)
-
-
-def _sum_income_and_expenses(entries: list[dict], period_prefix: str) -> dict:
-    """Suma ingresos y gastos cuyo "created_at" empiece con el prefijo dado
-    y calcula el balance. Es una función pura (no lee archivos ni imprime)
-    para poder probarla.
-
-    El prefijo define el período: un día completo ("2026-10-11") o un mes
-    entero ("2026-10"), ya que created_at siempre arranca con esa fecha.
-    Los registros sin "amount" numérico se ignoran, igual que en "total gastos".
-    """
-
-    income = 0
-    expenses = 0
-
-    for entry in entries:
-        if not str(entry.get("created_at", "")).startswith(period_prefix):
-            continue
-
-        amount = entry.get("amount")
-
-        if not isinstance(amount, int | float):
-            continue
-
-        if entry.get("type") == "ingreso":
-            income += amount
-        elif entry.get("type") == "gasto":
-            expenses += amount
-
-    return {
-        "income": income,
-        "expenses": expenses,
-        "balance": income - expenses,
-    }
-
-
-def calculate_balance(entries: list[dict], day: date) -> dict:
-    """Suma ingresos y gastos de un día y calcula el balance."""
-
-    return _sum_income_and_expenses(entries, day.isoformat())
-
-
-def calculate_monthly_balance(entries: list[dict], day: date) -> dict:
-    """Igual que calculate_balance, pero agrupa por mes en vez de por día.
-
-    El mes se toma de "day" (normalmente date.today()), no del registro.
-    """
-
-    return _sum_income_and_expenses(entries, day.strftime("%Y-%m"))
-
-
-def calculate_weekly_balance(entries: list[dict], day: date) -> dict:
-    """Igual que calculate_balance, pero agrupa de lunes a domingo (la
-    semana que contiene a "day") en vez de por día o mes.
-
-    A diferencia de calculate_balance/calculate_monthly_balance, una
-    semana puede cruzar dos meses (ej. 29/10 a 4/11), así que no alcanza
-    con comparar un prefijo del string de fecha: hay que parsear la fecha
-    de cada registro y compararla contra el rango real de la semana.
-    """
-
-    inicio_semana = day - timedelta(days=day.weekday())
-    fin_semana = inicio_semana + timedelta(days=7)
-
-    income = 0
-    expenses = 0
-
-    for entry in entries:
-        created_at = entry.get("created_at")
-
-        if not created_at:
-            continue
-
-        try:
-            fecha = datetime.fromisoformat(created_at).date()
-        except ValueError:
-            continue
-
-        if not (inicio_semana <= fecha < fin_semana):
-            continue
-
-        amount = entry.get("amount")
-
-        if not isinstance(amount, int | float):
-            continue
-
-        if entry.get("type") == "ingreso":
-            income += amount
-        elif entry.get("type") == "gasto":
-            expenses += amount
-
-    return {
-        "income": income,
-        "expenses": expenses,
-        "balance": income - expenses,
-    }
-
-
-def calculate_total_balance(entries: list[dict]) -> dict:
-    """Igual que calculate_balance, pero de toda la vida (sin filtrar por
-    fecha): todo string de fecha empieza con el prefijo vacío.
-    """
-
-    return _sum_income_and_expenses(entries, "")
 
 
 def show_daily_balance() -> None:
@@ -1286,24 +632,6 @@ def show_total_balance() -> None:
     print()
 
 
-HELP_TEXT = """Comandos disponibles:
-
-  listar / listar gastos / ingresos / tareas / ideas / notas / recordatorios
-  listar hoy / mes
-
-  total gastos / ingresos
-  balance dia / semana / mes / total
-
-  borrar <id>
-  hecha <id>
-  backup
-
-  recordatorio: 19/10 08:00 sacar la basura
-  balance diario: 23:00
-  gasto:/ingreso: ... #categoria (opcional, ej. gasto: 5000 nafta #auto)
-
-  ayuda
-  salir"""
 # La terminal, la web y el bot de Telegram muestran este mismo texto (la
 # web y el bot no tienen "salir": cerrar la pestaña/chat alcanza), para que
 # la ayuda nunca se desincronice entre los tres. No incluye cómo capturar
@@ -1327,36 +655,6 @@ def show_backup() -> None:
         print("Atlas: Todavía no hay nada guardado para respaldar.")
     else:
         print(f"Atlas: Copia de seguridad guardada en {backup_path.name}.")
-
-
-def format_saved_message(entry_type: str, entry: dict) -> str:
-    """Mensaje de confirmación al guardar un registro nuevo, compartido
-    por terminal, web y bot para que los tres digan lo mismo.
-
-    Muestra la categoría si hay una (puesta a mano con "#categoria" o
-    detectada sola de un registro anterior), para que quede claro que
-    Atlas la categorizó sin que haga falta volver a escribirla.
-    """
-
-    etiqueta = entry_type.replace("_", " ")
-
-    if entry.get("categoria"):
-        return f"Guardado como {etiqueta} (#{entry['categoria']})."
-
-    return f"Guardado como {etiqueta}."
-
-
-def format_balance_summary(resultado: dict) -> str:
-    """Una línea con ingresos, gastos y balance, para mostrar fuera de la
-    terminal (web, Telegram), donde el formato de 3 líneas de
-    show_daily_balance/show_monthly_balance no hace falta.
-    """
-
-    return (
-        f"Ingresos: {format_money(resultado['income'])} · "
-        f"Gastos: {format_money(resultado['expenses'])} · "
-        f"Balance: {format_money(resultado['balance'])}"
-    )
 
 
 # Comandos de una sola forma fija (sin parámetros variables como <id> o

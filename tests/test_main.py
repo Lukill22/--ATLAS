@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
+import atlas.calculations as calculations
 import atlas.main as atlas_main
 from conftest import archivo_temporal
 from atlas.main import (
@@ -318,14 +319,14 @@ class TestFilterByPeriod:
         assert filter_by_period(self._entries(), None) == self._entries()
 
     def test_hoy_solo_deja_las_de_hoy(self):
-        with patch.object(atlas_main, "date") as fecha_falsa:
+        with patch.object(calculations, "date") as fecha_falsa:
             fecha_falsa.today.return_value = date(2026, 10, 11)
             resultado = filter_by_period(self._entries(), "hoy")
 
         assert [entry["text"] for entry in resultado] == ["de hoy"]
 
     def test_mes_deja_todo_el_mes(self):
-        with patch.object(atlas_main, "date") as fecha_falsa:
+        with patch.object(calculations, "date") as fecha_falsa:
             fecha_falsa.today.return_value = date(2026, 10, 11)
             resultado = filter_by_period(self._entries(), "mes")
 
@@ -1648,3 +1649,40 @@ class TestHandleCommandTypeado:
     def test_texto_sin_relacion_sigue_devolviendo_none(self):
         with archivo_temporal():
             assert handle_command("se me ocurrió una idea para el finde") is None
+
+
+class TestArranqueComoScript:
+    """Atlas tiene que poder arrancarse como dice el README, sin instalar nada."""
+
+    def test_main_py_arranca_ejecutado_como_script(self):
+        # Al dividir main.py en módulos (parsing, calculations, formatting),
+        # "python src/atlas/main.py" dejó de encontrar el paquete `atlas` y
+        # fallaba con ModuleNotFoundError. Ninguna otra prueba lo detectaba,
+        # porque conftest.py agrega src/ al path y oculta el problema.
+        import os
+        import subprocess
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        script = Path(atlas_main.__file__).resolve()
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            entorno = {
+                clave: valor
+                for clave, valor in os.environ.items()
+                if clave != "PYTHONPATH"
+            }
+            entorno["ATLAS_DATA_FILE"] = str(Path(carpeta) / "entries.jsonl")
+
+            resultado = subprocess.run(
+                [sys.executable, str(script)],
+                input="balance dia\nsalir\n",
+                capture_output=True,
+                text=True,
+                env=entorno,
+                timeout=30,
+            )
+
+        assert resultado.returncode == 0, resultado.stderr
+        assert "Balance de hoy" in resultado.stdout

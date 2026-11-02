@@ -145,6 +145,9 @@ Atlas/
 │   └── atlas/
 │       ├── __init__.py
 │       ├── main.py
+│       ├── parsing.py
+│       ├── calculations.py
+│       ├── formatting.py
 │       ├── web.py
 │       ├── telegram_bot.py
 │       └── templates/

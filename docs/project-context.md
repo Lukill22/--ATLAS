@@ -56,8 +56,8 @@ entienda.
 - Los registros se almacenan inicialmente en `data/entries.jsonl`.
 - `data/entries.jsonl` contiene información personal y no debe versionarse.
 - SQLite puede reemplazar JSONL cuando las consultas lo justifiquen.
-- Atlas será modular, pero `main.py` no se dividirá hasta que exista una necesidad
-  real de mantenimiento.
+- Atlas es modular y se divide de a poco, solo cuando duele mantener algo junto:
+  la lógica pura ya está en `parsing.py`, `calculations.py` y `formatting.py`.
 - No se integrarán todavía modelos de IA, voz, Notion ni automatizaciones.
 - Black es el formateador elegido para Python.
 - VS Code es el entorno de desarrollo, GitHub conserva el repositorio y Obsidian
@@ -353,7 +353,7 @@ salir
 - La evolución de la memoria puede usar SQLite, Markdown, Obsidian u otra solución.
 - Falta diseñar formalmente el sistema de permisos y confirmaciones.
 - Falta decidir cómo capturar información desde el celular o mediante voz.
-- La división de `main.py` ocurrirá solo cuando el crecimiento lo justifique.
+- La división de `main.py` empezó: la lógica pura ya vive en `parsing.py`, `calculations.py` y `formatting.py`. Lo que toca el archivo de datos sigue en `main.py` a propósito: todas las pruebas parchean `atlas.main.DATA_FILE`, así que separarlo (`storage.py`) es un cambio más grande, para hacer aparte.
 
 ## Fuente y mantenimiento
 
