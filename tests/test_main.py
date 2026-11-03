@@ -1736,3 +1736,85 @@ class TestArranqueComoScript:
 
         assert resultado.returncode == 0, resultado.stderr
         assert "Balance de hoy" in resultado.stdout
+
+
+class TestInferAmountType:
+    # A pedido: "comida 7000" o "uber 32000" sin escribir "gasto:" ni
+    # "ingreso:", aprendiendo de las palabras ya usadas en cada tipo.
+
+    def test_palabra_ya_usada_en_un_gasto(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 7000 comida")
+
+            assert atlas_main.infer_amount_type("comida 5000") == "gasto"
+
+    def test_palabra_ya_usada_en_un_ingreso(self):
+        with archivo_temporal():
+            save_entry("ingreso", "ingreso: 32000 uber")
+
+            assert atlas_main.infer_amount_type("uber 15000") == "ingreso"
+
+    def test_tambien_aprende_de_la_categoria(self):
+        # Caso real: "gasto: 4222 #comida" no tiene descripción, solo
+        # categoría, y "comida" igual tiene que contar.
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 4222 #comida")
+
+            assert atlas_main.infer_amount_type("comida 7000") == "gasto"
+            assert atlas_main.infer_amount_type("57000 #comida") == "gasto"
+
+    def test_palabra_desconocida_no_adivina(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 7000 comida")
+
+            assert atlas_main.infer_amount_type("tarjeta 57000") is None
+
+    def test_palabra_usada_en_gastos_y_en_ingresos_no_adivina(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 7000 uber")
+            save_entry("ingreso", "ingreso: 32000 uber")
+
+            assert atlas_main.infer_amount_type("uber 5000") is None
+
+    def test_monto_chico_es_una_cantidad_no_un_gasto(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 7000 comida")
+
+            assert atlas_main.infer_amount_type("comida para 4") is None
+
+    def test_texto_de_varias_lineas_no_cuenta(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 7000 facturas")
+
+            assert atlas_main.infer_amount_type("Lista:\nfacturas 7000") is None
+
+    def test_sin_numero_no_es_monto(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 7000 comida")
+
+            assert atlas_main.infer_amount_type("comprar comida") is None
+
+
+class TestSinDescripcionNoEsSenal:
+    def test_sin_descripcion_no_hereda_la_categoria_de_otro_sin_descripcion(self):
+        # Bug encontrado al agregar infer_amount_type: "Sin descripción" se
+        # trataba como dos palabras más, así que un gasto sin descripción
+        # heredaba la categoría del último gasto sin descripción.
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 4222 #comida")
+
+            segundo = save_entry("gasto", "gasto: 300")
+
+            assert "categoria" not in segundo
+
+
+class TestTypoNoConfundeMontos:
+    def test_tarjeta_con_monto_no_se_confunde_con_tarea(self):
+        # Caso real: "tarjeta" se parece un 83% a "tarea".
+        assert atlas_main.detect_probable_typo("tarjeta 57000") is None
+
+    def test_gasto_mal_escrito_con_monto_se_sigue_detectando(self):
+        assert atlas_main.detect_probable_typo("gsato 5000") == "gasto:"
+
+    def test_tarea_mal_escrita_sin_monto_se_sigue_detectando(self):
+        assert atlas_main.detect_probable_typo("trea comprar pan") == "tarea:"

@@ -304,11 +304,26 @@ perdía); un botón de una pregunta vencida (bot reiniciado en el medio)
 avisa en vez de no hacer nada; y el log tiene fecha y hora. 317 pruebas
 automatizadas en total.
 
+### Sprint 18: gastos e ingresos sin escribir "gasto:" — terminado
+
+A pedido: escribir `comida 7000` o `uber 32000` sin aclarar el tipo.
+`infer_amount_type` aprende de las palabras ya usadas en gastos e
+ingresos (descripción o categoría), sin palabras predefinidas, igual
+que la categorización del Sprint 13. Si la palabra no se usó nunca, o
+se usó en los dos tipos, no adivina: el bot pregunta una vez con
+botones Gasto/Ingreso/Nota (la terminal y la web la guardan como nota).
+Montos menores a 100 y textos de varias líneas no cuentan, para no
+confundir cantidades ("comida para 4") con pesos. Al hacerlo
+aparecieron dos bugs reales: "tarjeta 57000" se tomaba como un error de
+tipeo de "tarea", y un gasto sin descripción heredaba la categoría de
+otro sin descripción. 339 pruebas automatizadas en total.
+
 ## Funciones actuales
 
 ```text
 gasto: 15000 nafta
 gasto: 15000 nafta #auto (categoría opcional, una palabra, en cualquier lugar)
+comida 7000 (sin prefijo: gasto o ingreso según palabras ya usadas)
 ingreso: 100000 uber
 tarea: comprar arroz
 idea: crear módulo de estudio

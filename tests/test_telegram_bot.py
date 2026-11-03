@@ -28,8 +28,10 @@ def _sin_confirmaciones_pendientes():
     """
 
     bot._pending_typo_by_chat.clear()
+    bot._pending_amount_by_chat.clear()
     yield
     bot._pending_typo_by_chat.clear()
+    bot._pending_amount_by_chat.clear()
 
 
 class TestProcessTextStart:
@@ -462,3 +464,95 @@ class TestAutorizacion:
             assert "ATLAS_TELEGRAM_CHAT_ID=999" in texto
             assert "hunter2" not in texto
             assert texto.count("ignoré un mensaje") == 1
+
+
+def _boton(data: str) -> dict:
+    return {"id": "cb1", "message": {"chat": {"id": 123}}, "data": data}
+
+
+class TestMontoSinPrefijo:
+    # A pedido: "comida 7000" o "uber 32000" sin escribir "gasto:" ni
+    # "ingreso:". Si la palabra ya se usó, se guarda directo; si no, se
+    # pregunta una sola vez.
+
+    def test_palabra_conocida_se_guarda_directo_como_gasto(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            save_entry("gasto", "gasto: 7000 comida #comida")
+            bot.process_text(123, "comida 5000")
+
+            ultimo = load_entries()[-1]
+            assert (ultimo["type"], ultimo["amount"]) == ("gasto", 5000)
+            enviar.assert_called_once_with(123, "Guardado como gasto (#comida).")
+
+    def test_palabra_conocida_se_guarda_directo_como_ingreso(self):
+        with archivo_temporal(), patch.object(bot, "send_message"):
+            save_entry("ingreso", "ingreso: 32000 uber")
+            bot.process_text(123, "uber 15000")
+
+            assert load_entries()[-1]["type"] == "ingreso"
+
+    def test_palabra_desconocida_pregunta_con_botones_sin_guardar(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            bot.process_text(123, "tarjeta 57000")
+
+            assert load_entries() == []
+            assert enviar.call_args[1]["botones"] == [
+                ("Gasto", "tipo_gasto"),
+                ("Ingreso", "tipo_ingreso"),
+                ("Es una nota", "tipo_nota"),
+            ]
+
+    def test_elegir_gasto_guarda_y_la_proxima_vez_ya_no_pregunta(self):
+        with archivo_temporal(), patch.object(bot, "send_message"), patch.object(
+            bot, "_answer_callback"
+        ):
+            bot.process_text(123, "tarjeta 57000")
+            bot.process_callback(_boton("tipo_gasto"))
+            bot.process_text(123, "tarjeta 3000")
+
+            entradas = load_entries()
+            assert [(e["type"], e["amount"]) for e in entradas] == [
+                ("gasto", 57000),
+                ("gasto", 3000),
+            ]
+
+    def test_elegir_nota_guarda_el_texto_tal_cual(self):
+        with archivo_temporal(), patch.object(bot, "send_message"), patch.object(
+            bot, "_answer_callback"
+        ):
+            bot.process_text(123, "colectivo 152")
+            bot.process_callback(_boton("tipo_nota"))
+
+            assert load_entries()[0]["type"] == "nota"
+            assert load_entries()[0]["text"] == "colectivo 152"
+
+    def test_responder_escribiendo_ingreso_tambien_sirve(self):
+        with archivo_temporal(), patch.object(bot, "send_message"):
+            bot.process_text(123, "venta 20000")
+            bot.process_text(123, "Ingreso")
+
+            assert load_entries()[0]["type"] == "ingreso"
+
+    def test_otro_mensaje_en_vez_de_responder_se_procesa(self):
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            bot.process_text(123, "tarjeta 57000")
+            bot.process_text(123, "gasto: 57000 carrefour #tarjeta")
+
+            assert [e["type"] for e in load_entries()] == ["gasto"]
+            avisos = [llamada[0][1] for llamada in enviar.call_args_list]
+            assert 'No guardé "tarjeta 57000" (quedó sin respuesta).' in avisos
+
+    def test_boton_vencido_avisa(self):
+        with archivo_temporal(), patch.object(
+            bot, "send_message"
+        ) as enviar, patch.object(bot, "_answer_callback"):
+            bot.process_callback(_boton("tipo_gasto"))
+
+            assert load_entries() == []
+            assert "ya no está vigente" in enviar.call_args[0][1]
+
+    def test_texto_sin_monto_sigue_siendo_nota_directa(self):
+        with archivo_temporal(), patch.object(bot, "send_message"):
+            bot.process_text(123, "Están anotados?")
+
+            assert load_entries()[0]["type"] == "nota"

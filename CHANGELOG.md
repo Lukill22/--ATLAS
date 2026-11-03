@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.19.0
+
+- Gastos e ingresos sin escribir el tipo: `comida 7000` se guarda como gasto y `uber 32000` como ingreso, si esa palabra ya se usó antes en un gasto o ingreso (en la descripción o como categoría). Atlas no tiene palabras predefinidas: aprende de lo que ya guardaste.
+- Si la palabra nunca se usó (o se usó en gastos y en ingresos), el bot pregunta una sola vez con botones **Gasto / Ingreso / Nota**, o se puede contestar escribiendo "gasto"/"ingreso"/"nota". Desde ahí ya la reconoce. La terminal y la web, por ahora, la guardan como nota.
+- No cuentan los montos menores a 100 (para que "comida para 4" no sea un gasto de $4) ni los mensajes de varias líneas.
+- Arreglado: "tarjeta 57000" se tomaba como un error de tipeo de "tarea" y Atlas preguntaba "¿Quisiste escribir 'tarea: 57000'?".
+- Arreglado: un gasto sin descripción heredaba la categoría del último gasto sin descripción ("Sin descripción" contaba como palabras en común).
+- 22 pruebas nuevas (339 en total).
+
 ## 0.18.0
 
 - La categoría de un gasto o ingreso puede ir en cualquier lugar: `gasto: #tarjeta 57000 carrefour` vale igual que `gasto: 57000 carrefour #tarjeta`. Antes solo funcionaba al final: al principio daba "No pude detectar el monto", y en el medio se comía la descripción sin avisar.

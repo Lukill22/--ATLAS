@@ -7,7 +7,7 @@ data/memory.json reales.
 
 from conftest import archivo_temporal
 
-from atlas.main import load_entries
+from atlas.main import load_entries, save_entry
 from atlas.web import app
 
 
@@ -668,3 +668,15 @@ class TestArranque:
             web.main()
 
         assert correr.call_args.kwargs["debug"] is False
+
+
+class TestMontoSinPrefijo:
+    def test_palabra_conocida_se_guarda_como_gasto_sin_escribir_gasto(self):
+        with archivo_temporal():
+            save_entry("gasto", "gasto: 7000 comida")
+
+            cliente().post("/agregar", data={"texto": "comida 5000"})
+
+            ultimo = load_entries()[-1]
+            assert ultimo["type"] == "gasto"
+            assert ultimo["amount"] == 5000

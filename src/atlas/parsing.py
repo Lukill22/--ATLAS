@@ -132,6 +132,31 @@ def parse_income(text: str) -> dict | None:
     return _parse_amount_entry(text, "ingreso:")
 
 
+# Por debajo de esto, un número en un texto sin prefijo es más probable que
+# sea una cantidad ("comida para 4", "2 kilos") que un monto en pesos.
+_MIN_UNTYPED_AMOUNT = 100
+
+
+def parse_untyped_amount(text: str) -> dict | None:
+    """Monto, descripción y categoría de un texto SIN prefijo, como
+    "comida 7000" o "uber 32000". None si no tiene esa forma.
+
+    No decide si es gasto o ingreso: eso depende de los registros
+    anteriores (ver infer_amount_type en main.py). Un texto de varias
+    líneas no cuenta: suele ser una nota con varios montos mezclados.
+    """
+
+    if "\n" in text.strip():
+        return None
+
+    result = _parse_amount_entry(text, "")
+
+    if result is None or result["amount"] < _MIN_UNTYPED_AMOUNT:
+        return None
+
+    return result
+
+
 # "19/10 08:00 texto" o "19/10/2026 08:00 texto" (año opcional, usa el
 # actual si falta). Fecha y hora con formato fijo, sin adivinar, igual
 # que el resto de Atlas.
@@ -312,10 +337,22 @@ def detect_probable_typo(text: str) -> str | None:
         first_word, _KNOWN_KEYWORDS.keys(), n=1, cutoff=_TYPO_SIMILARITY_CUTOFF
     )
 
-    if close_matches:
-        return _KNOWN_KEYWORDS[close_matches[0]]
+    if not close_matches:
+        return None
 
-    return None
+    sugerido = _KNOWN_KEYWORDS[close_matches[0]]
+
+    # Caso real: "tarjeta 57000" se parece a "tarea" (83%) y Atlas
+    # preguntaba "¿Quisiste escribir 'tarea: 57000'?", perdiendo además la
+    # palabra. Un texto con forma de monto ("palabra 57000") solo puede ser
+    # un gasto o ingreso mal escrito ("gsato 5000"), nunca una tarea o idea.
+    if parse_untyped_amount(text) is not None and sugerido not in (
+        "gasto:",
+        "ingreso:",
+    ):
+        return None
+
+    return sugerido
 
 
 def build_corrected_text(text: str, correct_prefix: str) -> str:

@@ -41,6 +41,7 @@ from atlas.parsing import (  # noqa: E402, F401
     parse_income,
     parse_list_command,
     parse_reminder,
+    parse_untyped_amount,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -138,6 +139,64 @@ _CATEGORY_STOPWORDS = {
 }
 
 
+def _signal_words(description: str) -> set[str]:
+    """Palabras de una descripción que sirven como señal para aprender de
+    registros anteriores: sin palabras de relleno, y sin el "Sin
+    descripción" que se pone cuando no hay ninguna (si contara, todos los
+    registros sin descripción parecerían "iguales" entre sí).
+    """
+
+    if description == "Sin descripción":
+        return set()
+
+    return {
+        palabra
+        for palabra in description.lower().split()
+        if palabra not in _CATEGORY_STOPWORDS
+    }
+
+
+def infer_amount_type(text: str) -> str | None:
+    """Decide si un texto sin prefijo ("comida 7000", "uber 32000") es un
+    gasto o un ingreso, según las palabras ya usadas antes en cada tipo
+    (en la descripción o como categoría). Así no hace falta escribir
+    "gasto:" para algo que Atlas ya vio, sin palabras predefinidas: solo
+    aprende de lo que ya se guardó.
+
+    None si el texto no es un monto con descripción, si ninguna palabra se
+    usó antes, o si se usó tanto en gastos como en ingresos (no adivina).
+    """
+
+    parsed = parse_untyped_amount(text)
+
+    if parsed is None:
+        return None
+
+    palabras = _signal_words(parsed["description"])
+
+    if parsed.get("categoria"):
+        palabras.add(parsed["categoria"])
+
+    if not palabras:
+        return None
+
+    tipos = set()
+
+    for entry in load_entries():
+        if entry.get("type") not in ("gasto", "ingreso"):
+            continue
+
+        vistas = _signal_words(entry.get("description", ""))
+
+        if entry.get("categoria"):
+            vistas.add(entry["categoria"].lower())
+
+        if palabras & vistas:
+            tipos.add(entry["type"])
+
+    return tipos.pop() if len(tipos) == 1 else None
+
+
 def _infer_category(description: str, entry_type: str) -> str | None:
     """Busca, entre los gastos o ingresos ya guardados, si alguna palabra
     de "description" ya se había asociado antes a una categoría (puesta a
@@ -148,11 +207,7 @@ def _infer_category(description: str, entry_type: str) -> str | None:
     entry_type para que gastos e ingresos nunca se mezclen entre sí.
     """
 
-    palabras_nuevas = {
-        palabra
-        for palabra in description.lower().split()
-        if palabra not in _CATEGORY_STOPWORDS
-    }
+    palabras_nuevas = _signal_words(description)
 
     if not palabras_nuevas:
         return None
@@ -166,11 +221,7 @@ def _infer_category(description: str, entry_type: str) -> str | None:
         if not categoria:
             continue
 
-        palabras_viejas = {
-            palabra
-            for palabra in entry.get("description", "").lower().split()
-            if palabra not in _CATEGORY_STOPWORDS
-        }
+        palabras_viejas = _signal_words(entry.get("description", ""))
 
         if palabras_nuevas & palabras_viejas:
             return categoria
@@ -964,6 +1015,12 @@ def main() -> None:
                 print(f"Atlas: ¿Quisiste escribir '{corrected_text}'? (si/no)")
                 pending_typo = (user_input, corrected_text)
                 continue
+
+            tipo_inferido = infer_amount_type(user_input)
+
+            if tipo_inferido is not None:
+                entry_type = tipo_inferido
+                user_input = f"{tipo_inferido}: {user_input}"
 
         _save_and_report(entry_type, user_input)
 

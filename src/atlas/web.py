@@ -50,6 +50,7 @@ from atlas.main import (  # noqa: E402
     format_saved_message,
     group_by_category,
     handle_command,
+    infer_amount_type,
     load_entries,
     mark_task_done,
     merge_categories,
@@ -306,6 +307,12 @@ def agregar():
             return _render_index(
                 pendiente={"original": texto, "corregido": texto_corregido}
             )
+
+        tipo_inferido = infer_amount_type(texto)
+
+        if tipo_inferido is not None:
+            entry_type = tipo_inferido
+            texto = f"{tipo_inferido}: {texto}"
 
     _guardar_y_avisar(entry_type, texto)
 

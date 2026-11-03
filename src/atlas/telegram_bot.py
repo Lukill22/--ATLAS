@@ -45,9 +45,11 @@ from atlas.main import (  # noqa: E402
     get_due_daily_balances,
     get_due_reminders,
     handle_command,
+    infer_amount_type,
     load_entries,
     mark_daily_balance_sent,
     mark_reminder_notified,
+    parse_untyped_amount,
     save_entry,
 )
 
@@ -68,6 +70,13 @@ def _log(mensaje: str) -> None:
 # usuario). Vive en memoria mientras el script corre, igual que
 # pending_typo en el loop de la terminal.
 _pending_typo_by_chat: dict[int, tuple[str, str]] = {}
+
+# Montos sin prefijo con palabras que Atlas todavía no conoce ("tarjeta
+# 57000"): se pregunta una vez si es gasto, ingreso o nota, y desde ahí
+# infer_amount_type ya lo reconoce solo.
+_pending_amount_by_chat: dict[int, str] = {}
+
+_AMOUNT_TYPE_ANSWERS = {"gasto": "gasto", "ingreso": "ingreso", "nota": "nota"}
 
 
 # Chats autorizados a usar el bot. Telegram deja que CUALQUIER persona le
@@ -263,6 +272,17 @@ def process_text(chat_id: int, texto: str) -> None:
         # aviso; caso real: en vez de contestar, se reescribe bien el gasto.
         send_message(chat_id, f'No guardé "{original}" (quedó sin respuesta).')
 
+    if chat_id in _pending_amount_by_chat:
+        original = _pending_amount_by_chat.pop(chat_id)
+        tipo = _AMOUNT_TYPE_ANSWERS.get(texto.lower())
+
+        if tipo is not None:
+            _guardar_como(chat_id, tipo, original)
+            return
+
+        # Igual que con la pregunta de arriba: es un mensaje nuevo.
+        send_message(chat_id, f'No guardé "{original}" (quedó sin respuesta).')
+
     resultado = handle_command(texto)
 
     if resultado is not None:
@@ -288,7 +308,35 @@ def process_text(chat_id: int, texto: str) -> None:
             )
             return
 
+        tipo_inferido = infer_amount_type(texto)
+
+        if tipo_inferido is not None:
+            _guardar_como(chat_id, tipo_inferido, texto)
+            return
+
+        if parse_untyped_amount(texto) is not None:
+            _pending_amount_by_chat[chat_id] = texto
+            send_message(
+                chat_id,
+                f'¿"{texto}" es un gasto o un ingreso?',
+                botones=[
+                    ("Gasto", "tipo_gasto"),
+                    ("Ingreso", "tipo_ingreso"),
+                    ("Es una nota", "tipo_nota"),
+                ],
+            )
+            return
+
     _guardar_y_avisar(chat_id, entry_type, texto)
+
+
+def _guardar_como(chat_id: int, tipo: str, texto: str) -> None:
+    """Guarda un texto sin prefijo como gasto, ingreso o nota."""
+
+    if tipo == "nota":
+        _guardar_y_avisar(chat_id, "nota", texto)
+    else:
+        _guardar_y_avisar(chat_id, tipo, f"{tipo}: {texto}")
 
 
 def _preguntar_borrado(chat_id: int, entry_id: int) -> None:
@@ -312,13 +360,22 @@ def process_callback(callback_query: dict) -> None:
     data = callback_query["data"]
     _answer_callback(callback_query["id"])
 
-    if data in {"typo_si", "typo_no"} and chat_id not in _pending_typo_by_chat:
-        # La pregunta vive en memoria: si el bot se reinició en el medio, o
-        # ya se respondió, no hay nada que guardar. Antes no pasaba nada y
+    pregunta_vencida = (
+        data in {"typo_si", "typo_no"} and chat_id not in _pending_typo_by_chat
+    ) or (data.startswith("tipo_") and chat_id not in _pending_amount_by_chat)
+
+    if pregunta_vencida:
+        # Las preguntas viven en memoria: si el bot se reinició en el medio,
+        # o ya se respondió, no hay nada que guardar. Antes no pasaba nada y
         # no avisaba.
         send_message(
             chat_id, "Esa pregunta ya no está vigente. Mandá el mensaje de nuevo."
         )
+        return
+
+    if data.startswith("tipo_"):
+        texto = _pending_amount_by_chat.pop(chat_id)
+        _guardar_como(chat_id, data.removeprefix("tipo_"), texto)
         return
 
     if data == "typo_si":
