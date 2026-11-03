@@ -8,6 +8,7 @@ data/entries.jsonl real.
 import contextlib
 import io
 import os
+import re
 from contextlib import contextmanager
 from datetime import datetime
 from unittest.mock import patch
@@ -122,6 +123,61 @@ class TestProcessTextTypo:
             )
 
             assert load_entries()[0]["type"] == "nota"
+
+    def test_otro_mensaje_en_vez_de_responder_se_procesa_y_no_se_pierde(self):
+        # Caso real: en vez de contestar la pregunta, se reescribe bien el
+        # gasto. Antes el original quedaba como nota y el gasto se perdía.
+        with archivo_temporal(), patch.object(bot, "send_message") as enviar:
+            bot.process_text(123, "gasto 5000 pan")
+            bot.process_text(123, "gasto: 5000 pan")
+
+            entradas = load_entries()
+            assert [entrada["type"] for entrada in entradas] == ["gasto"]
+            avisos = [llamada[0][1] for llamada in enviar.call_args_list]
+            assert 'No guardé "gasto 5000 pan" (quedó sin respuesta).' in avisos
+            assert avisos[-1] == "Guardado como gasto."
+
+    def test_boton_de_una_pregunta_vencida_avisa_en_vez_de_no_hacer_nada(self):
+        # Caso real: el bot se reinició entre la pregunta y el toque del
+        # botón, y tocar "Sí" no guardaba ni respondía nada.
+        with archivo_temporal(), patch.object(
+            bot, "send_message"
+        ) as enviar, patch.object(bot, "_answer_callback"):
+            bot.process_callback(
+                {"id": "cb1", "message": {"chat": {"id": 123}}, "data": "typo_si"}
+            )
+
+            assert load_entries() == []
+            assert "ya no está vigente" in enviar.call_args[0][1]
+
+    def test_telegram_rechaza_confirmar_el_boton_y_igual_se_guarda(self):
+        import urllib.error
+
+        rechazo = urllib.error.HTTPError(
+            "url", 400, "Bad Request: query is too old", None, None
+        )
+
+        with archivo_temporal(), patch.object(bot, "send_message"), patch.object(
+            bot, "_call", side_effect=rechazo
+        ), contextlib.redirect_stdout(io.StringIO()):
+            bot.process_text(123, "gasto 5000 pan")
+            bot.process_callback(
+                {"id": "cb1", "message": {"chat": {"id": 123}}, "data": "typo_si"}
+            )
+
+            assert load_entries()[0]["type"] == "gasto"
+
+
+class TestLog:
+    def test_cada_linea_tiene_fecha_y_hora(self):
+        salida = io.StringIO()
+
+        with contextlib.redirect_stdout(salida):
+            bot._log("Atlas: algo pasó")
+
+        assert re.match(
+            r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d Atlas: algo pasó$", salida.getvalue()
+        )
 
 
 class TestProcessTextComandos:

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.0
+
+- La categoría de un gasto o ingreso puede ir en cualquier lugar: `gasto: #tarjeta 57000 carrefour` vale igual que `gasto: 57000 carrefour #tarjeta`. Antes solo funcionaba al final: al principio daba "No pude detectar el monto", y en el medio se comía la descripción sin avisar.
+- La categoría pasa a ser una sola palabra (la primera `#palabra`). Para varias, con guion: `#gastos-fijos`. Ninguna categoría guardada tenía más de una palabra.
+- El monto acepta `$` adelante (`$57000`, `$ 57.000`).
+- Bot: si hay una pregunta "¿Quisiste escribir...?" pendiente y se manda otro mensaje en vez de responder, ese mensaje se procesa normal y se avisa que el original no se guardó. Antes el original quedaba como nota y el mensaje nuevo se perdía.
+- Bot: tocar "Sí"/"No" en una pregunta vencida (por ejemplo, después de reiniciar el bot) avisa que hay que mandar el mensaje de nuevo. Antes no hacía nada, y Telegram devolvía un `400 Bad Request` que cortaba el procesamiento.
+- Bot: cada línea del log tiene fecha y hora.
+- 11 pruebas nuevas (317 en total).
+
 ## 0.17.2
 
 - Se dividió `main.py` (de 1674 a unas 970 líneas): la lógica pura se movió a `parsing.py`, `calculations.py` y `formatting.py`. El código se movió sin reescribirlo (se verificó que cada función es idéntica a la original) y `main.py` sigue exponiendo los mismos nombres, así que `web.py`, `telegram_bot.py` y las pruebas no cambiaron.

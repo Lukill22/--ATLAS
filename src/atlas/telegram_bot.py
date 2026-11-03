@@ -53,6 +53,17 @@ from atlas.main import (  # noqa: E402
 
 TOKEN = os.environ.get("ATLAS_TELEGRAM_TOKEN")
 
+
+def _log(mensaje: str) -> None:
+    """Escribe una línea en el log con fecha y hora.
+
+    Sin la hora no se podía saber cuándo pasó un error, ni relacionarlo con
+    un mensaje que no se guardó.
+    """
+
+    print(f"{datetime.now():%Y-%m-%d %H:%M:%S} {mensaje}")
+
+
 # Confirmaciones pendientes por chat (típicamente un solo chat: el del
 # usuario). Vive en memoria mientras el script corre, igual que
 # pending_typo en el loop de la terminal.
@@ -98,7 +109,7 @@ def _log_unauthorized(chat_id: int) -> None:
         return
 
     _unauthorized_logged.add(chat_id)
-    print(
+    _log(
         f"Atlas: ignoré un mensaje del chat {chat_id}, que no está autorizado. "
         f"Si es tu chat, configurá ATLAS_TELEGRAM_CHAT_ID={chat_id} y reiniciá el bot."
     )
@@ -182,9 +193,18 @@ def send_message(
 
 
 def _answer_callback(callback_query_id: str) -> None:
-    """Confirma a Telegram que el toque del botón se procesó (saca el relojito)."""
+    """Confirma a Telegram que el toque del botón se procesó (saca el relojito).
 
-    _call("answerCallbackQuery", payload={"callback_query_id": callback_query_id})
+    Telegram rechaza con 400 un botón tocado mucho después (ej. después de
+    un reinicio). Es solo cosmético, así que no debe frenar el resto: antes
+    cortaba el procesamiento del botón y no se guardaba ni respondía nada.
+    """
+
+    try:
+        _call("answerCallbackQuery", payload={"callback_query_id": callback_query_id})
+
+    except urllib.error.HTTPError as error:
+        _log(f"Telegram rechazó confirmar un botón ({error}); sigo igual.")
 
 
 def _guardar_y_avisar(chat_id: int, entry_type: str, texto: str) -> None:
@@ -232,10 +252,16 @@ def process_text(chat_id: int, texto: str) -> None:
 
         if texto.lower() in {"si", "sí", "s"}:
             _guardar_y_avisar(chat_id, detect_entry_type(corregido), corregido)
-        else:
-            _guardar_y_avisar(chat_id, "nota", original)
+            return
 
-        return
+        if texto.lower() in {"no", "n"}:
+            _guardar_y_avisar(chat_id, "nota", original)
+            return
+
+        # Cualquier otra cosa es un mensaje nuevo, no una respuesta. Antes
+        # se guardaba el original como nota y este mensaje se perdía sin
+        # aviso; caso real: en vez de contestar, se reescribe bien el gasto.
+        send_message(chat_id, f'No guardé "{original}" (quedó sin respuesta).')
 
     resultado = handle_command(texto)
 
@@ -286,16 +312,23 @@ def process_callback(callback_query: dict) -> None:
     data = callback_query["data"]
     _answer_callback(callback_query["id"])
 
+    if data in {"typo_si", "typo_no"} and chat_id not in _pending_typo_by_chat:
+        # La pregunta vive en memoria: si el bot se reinició en el medio, o
+        # ya se respondió, no hay nada que guardar. Antes no pasaba nada y
+        # no avisaba.
+        send_message(
+            chat_id, "Esa pregunta ya no está vigente. Mandá el mensaje de nuevo."
+        )
+        return
+
     if data == "typo_si":
-        if chat_id in _pending_typo_by_chat:
-            _original, corregido = _pending_typo_by_chat.pop(chat_id)
-            _guardar_y_avisar(chat_id, detect_entry_type(corregido), corregido)
+        _original, corregido = _pending_typo_by_chat.pop(chat_id)
+        _guardar_y_avisar(chat_id, detect_entry_type(corregido), corregido)
         return
 
     if data == "typo_no":
-        if chat_id in _pending_typo_by_chat:
-            original, _corregido = _pending_typo_by_chat.pop(chat_id)
-            _guardar_y_avisar(chat_id, "nota", original)
+        original, _corregido = _pending_typo_by_chat.pop(chat_id)
+        _guardar_y_avisar(chat_id, "nota", original)
         return
 
     if data.startswith("borrar_si:"):
@@ -357,7 +390,7 @@ def run() -> None:
     """Arranca el loop de polling. Bloquea hasta Ctrl+C."""
 
     if not TOKEN:
-        print(
+        _log(
             "Atlas: falta ATLAS_TELEGRAM_TOKEN. Creá un bot hablándole a "
             "@BotFather en Telegram, y exportá el token que te da antes de "
             "correr esto."
@@ -365,14 +398,14 @@ def run() -> None:
         return
 
     if _allowed_chat_id() is None:
-        print(
+        _log(
             "Atlas: ATENCIÓN: falta ATLAS_TELEGRAM_CHAT_ID (o no es un número). "
             "Por seguridad el bot NO le va a responder a nadie hasta que lo "
             "configures. Escribile algo al bot desde tu Telegram: acá en el log "
             "va a aparecer tu chat_id y qué variable configurar."
         )
 
-    print("Atlas: bot de Telegram escuchando. Ctrl+C para salir.")
+    _log("Atlas: bot de Telegram escuchando. Ctrl+C para salir.")
     offset = 0
 
     while True:
@@ -385,7 +418,7 @@ def run() -> None:
             # pero igual pueden pasar en una conexion de larga duracion
             # como esta. Sin este catch, un corte de conexion comun
             # mataba todo el proceso.
-            print(
+            _log(
                 f"Atlas: no pude consultar Telegram ({error}); reintento en unos segundos."
             )
             time.sleep(3)
@@ -402,19 +435,19 @@ def run() -> None:
                 # mandando la respuesta) no debe matar el proceso entero:
                 # ya avanzamos "offset", así que el próximo mensaje se
                 # procesa normal en la siguiente vuelta.
-                print(f"Atlas: error procesando un mensaje ({error}); sigo.")
+                _log(f"Atlas: error procesando un mensaje ({error}); sigo.")
 
         try:
             avisar_recordatorios_vencidos()
 
         except Exception as error:  # noqa: BLE001 - no tirar abajo el bot
-            print(f"Atlas: error revisando recordatorios ({error}); sigo.")
+            _log(f"Atlas: error revisando recordatorios ({error}); sigo.")
 
         try:
             avisar_balances_diarios()
 
         except Exception as error:  # noqa: BLE001 - no tirar abajo el bot
-            print(f"Atlas: error revisando el balance diario ({error}); sigo.")
+            _log(f"Atlas: error revisando el balance diario ({error}); sigo.")
 
 
 if __name__ == "__main__":

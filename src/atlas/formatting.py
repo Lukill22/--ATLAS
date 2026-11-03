@@ -73,7 +73,7 @@ HELP_TEXT = """Comandos disponibles:
 
   recordatorio: 19/10 08:00 sacar la basura
   balance diario: 23:00
-  gasto:/ingreso: ... #categoria (opcional, ej. gasto: 5000 nafta #auto)
+  gasto:/ingreso: ... #categoria (opcional, una palabra, en cualquier lugar: gasto: 5000 nafta #auto)
 
   ayuda
   salir"""

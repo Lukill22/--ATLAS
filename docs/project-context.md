@@ -291,11 +291,24 @@ poder arreglar justo los casos ya separados), y la web tiene un control
 tarjeta pasa de texto libre a `<select>` con las que ya existen, para
 no generar más duplicados por tipeo. 296 pruebas automatizadas en total.
 
+### Sprint 17: el bot no pierde mensajes en silencio — terminado
+
+Uso real con el bot: un gasto con `#tarjeta` no se reconocía y varios
+mensajes terminaron como notas o directamente sin guardar, sin que
+Atlas avisara. La categoría ahora es la primera `#palabra` en cualquier
+lugar del texto (una sola palabra; antes podía tener varias pero solo
+funcionaba al final, y en el medio se comía la descripción), y el monto
+acepta `$`. En el bot: un mensaje nuevo mientras hay una pregunta
+"¿Quisiste escribir...?" sin responder se procesa normal (antes se
+perdía); un botón de una pregunta vencida (bot reiniciado en el medio)
+avisa en vez de no hacer nada; y el log tiene fecha y hora. 317 pruebas
+automatizadas en total.
+
 ## Funciones actuales
 
 ```text
 gasto: 15000 nafta
-gasto: 15000 nafta #auto (categoría opcional)
+gasto: 15000 nafta #auto (categoría opcional, una palabra, en cualquier lugar)
 ingreso: 100000 uber
 tarea: comprar arroz
 idea: crear módulo de estudio

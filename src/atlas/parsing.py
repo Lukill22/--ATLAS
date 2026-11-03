@@ -12,6 +12,12 @@ from datetime import date, datetime
 # "." o "," como separador de miles (ej. "15000", "15.000", "1.500.000").
 _AMOUNT_PATTERN = re.compile(r"^\d{1,3}([.,]\d{3})*$|^\d+$")
 
+# "#palabra" en cualquier lugar del texto; un "#" suelto cuenta como sin categoría.
+_CATEGORY_PATTERN = re.compile(r"#(\S*)")
+
+# "$" pegado o separado por espacios de un número: "$57000", "$ 57000".
+_DOLLAR_PATTERN = re.compile(r"\$\s*(?=\d)")
+
 
 def _parse_amount(amount_text: str) -> int | None:
     """Convierte un texto de monto a entero, o None si no es válido.
@@ -29,17 +35,22 @@ def _parse_amount(amount_text: str) -> int | None:
 
 def _parse_amount_entry(text: str, prefix: str) -> dict | None:
     """Extrae monto, descripción y categoría opcional de un texto con la
-    forma "<prefijo> monto desc #categoria".
+    forma "<prefijo> monto desc", más una "#categoria" opcional.
 
     Lo comparten gastos e ingresos: ambos tienen el mismo formato. También
     acepta el orden invertido ("<prefijo> desc monto", ej. "gasto: nafta
     12000"): es un error real y repetido — así se habla en la vida real,
     diciendo primero de qué es el gasto y después cuánto fue.
 
-    La categoría es opcional, va al final separada por "#" (puede tener
-    varias palabras, ej. "#gastos fijos"), y es la única parte de este
-    formato donde "#" tiene un significado especial: en cualquier otro
-    lugar del texto, "#" es un caracter común.
+    La categoría es opcional: la primera "#palabra" del texto, en cualquier
+    lugar ("gasto: #tarjeta 57000 carrefour" vale igual que al final). Es
+    una sola palabra a propósito: antes podía tener varias ("#gastos
+    fijos"), pero entonces solo funcionaba al final, y escrita en el medio
+    se comía la descripción sin avisar. Para varias palabras, con guion:
+    "#gastos-fijos".
+
+    El monto acepta un "$" adelante ("$57000" o "$ 57000"): es como se
+    escribe un precio sin pensarlo.
 
     La categoría se guarda siempre en minúsculas: sin esto, "Nafta" y
     "nafta" quedan como dos categorías distintas sin ninguna forma de
@@ -55,14 +66,18 @@ def _parse_amount_entry(text: str, prefix: str) -> dict | None:
         return None
 
     category = None
+    category_match = _CATEGORY_PATTERN.search(content)
 
-    if "#" in content:
-        content, _, category_text = content.partition("#")
-        content = content.strip()
-        category = category_text.strip().lower() or None
+    if category_match:
+        category = category_match.group(1).lower() or None
+        content = (
+            content[: category_match.start()] + " " + content[category_match.end() :]
+        )
 
-        if not content:
-            return None
+    content = " ".join(_DOLLAR_PATTERN.sub("", content).split())
+
+    if not content:
+        return None
 
     parts = content.split(maxsplit=1)
     amount = _parse_amount(parts[0])

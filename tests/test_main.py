@@ -128,11 +128,61 @@ class TestParseExpense:
             "categoria": "auto",
         }
 
-    def test_categoria_de_varias_palabras(self):
-        assert parse_expense("gasto: 15000 alquiler #gastos fijos") == {
+    def test_categoria_de_varias_palabras_con_guion(self):
+        assert parse_expense("gasto: 15000 alquiler #gastos-fijos") == {
             "amount": 15000,
             "description": "alquiler",
-            "categoria": "gastos fijos",
+            "categoria": "gastos-fijos",
+        }
+
+    def test_categoria_es_una_sola_palabra(self):
+        # Antes "#tarjeta carrefour" se volvía la categoría entera y el
+        # gasto quedaba sin descripción, sin ningún aviso.
+        assert parse_expense("gasto: 57000 #tarjeta carrefour") == {
+            "amount": 57000,
+            "description": "carrefour",
+            "categoria": "tarjeta",
+        }
+
+    def test_categoria_antes_del_monto(self):
+        # Caso real: antes daba "No pude detectar el monto del gasto".
+        assert parse_expense("gasto: #tarjeta 57000") == {
+            "amount": 57000,
+            "description": "Sin descripción",
+            "categoria": "tarjeta",
+        }
+
+    def test_categoria_en_el_medio_de_la_descripcion(self):
+        assert parse_expense("gasto: 57000 super #tarjeta carrefour") == {
+            "amount": 57000,
+            "description": "super carrefour",
+            "categoria": "tarjeta",
+        }
+
+    def test_categoria_con_orden_invertido_al_principio(self):
+        assert parse_expense("gasto: #tarjeta carrefour 57000") == {
+            "amount": 57000,
+            "description": "carrefour",
+            "categoria": "tarjeta",
+        }
+
+    def test_monto_con_signo_pesos(self):
+        assert parse_expense("gasto: $57000 carrefour #tarjeta") == {
+            "amount": 57000,
+            "description": "carrefour",
+            "categoria": "tarjeta",
+        }
+
+    def test_monto_con_signo_pesos_separado_y_orden_invertido(self):
+        assert parse_expense("gasto: carrefour $ 57.000") == {
+            "amount": 57000,
+            "description": "carrefour",
+        }
+
+    def test_signo_pesos_sin_numero_queda_en_la_descripcion(self):
+        assert parse_expense("gasto: 500 kiosco $ algo") == {
+            "amount": 500,
+            "description": "kiosco $ algo",
         }
 
     def test_categoria_con_orden_invertido(self):
