@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.1
+
+- La ayuda es más corta: solo los comandos y cuatro ejemplos de cómo anotar. Se sacaron los ejemplos de recordatorio y balance diario (siguen funcionando igual) y las explicaciones entre paréntesis. `salir` aparece solo en la terminal, donde sirve.
+- La interfaz web puede arrancar sola al iniciar sesión en Windows, igual que el bot (`scripts/iniciar_web.ps1`, tarea "Atlas - Web").
+
 ## 0.19.0
 
 - Gastos e ingresos sin escribir el tipo: `comida 7000` se guarda como gasto y `uber 32000` como ingreso, si esa palabra ya se usó antes en un gasto o ingreso (en la descripción o como categoría). Atlas no tiene palabras predefinidas: aprende de lo que ya guardaste.

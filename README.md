@@ -115,6 +115,14 @@ dedicado, solo evita tener que abrir una terminal cada vez.
 
 Para desactivarlo: `Unregister-ScheduledTask -TaskName "Atlas - Bot de Telegram" -Confirm:$false`.
 
+La interfaz web se arranca sola de la misma forma, con su propia tarea
+(`scripts/iniciar_web.ps1`, log en `logs/web.log`): repetir el paso 2
+cambiando `iniciar_bot.ps1` por `iniciar_web.ps1` y el nombre de la tarea por
+`"Atlas - Web"`. Recordá que la web no tiene contraseña: queda abierta a
+cualquiera en tu wifi mientras la computadora esté prendida. El link para el
+celular aparece al principio de `logs/web.log`, y puede cambiar si el router
+le da otra IP a la computadora.
+
 ## Cómo correr las pruebas
 
 ```bash

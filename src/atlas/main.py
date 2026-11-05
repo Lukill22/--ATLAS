@@ -683,18 +683,16 @@ def show_total_balance() -> None:
     print()
 
 
-# La terminal, la web y el bot de Telegram muestran este mismo texto (la
-# web y el bot no tienen "salir": cerrar la pestaña/chat alcanza), para que
-# la ayuda nunca se desincronice entre los tres. No incluye cómo capturar
-# gasto:/tarea:/etc. (una vez que se sabe usar, esa parte sobra acá), pero
-# sí el formato de "recordatorio:" y el de "#categoria" porque ninguno de
-# los dos es adivinable.
+# La terminal, la web y el bot de Telegram muestran este mismo texto, para
+# que la ayuda nunca se desincronice entre los tres. Es corta a propósito
+# (pedido del usuario: las explicaciones y ejemplos de más ensuciaban la
+# lista). "salir" se agrega solo acá: en la web y el bot no hace nada.
 
 
 def show_help() -> None:
     """Muestra los comandos disponibles."""
 
-    print(f"\n{HELP_TEXT}\n")
+    print(f"\n{HELP_TEXT}\n\n  salir\n")
 
 
 def show_backup() -> None:

@@ -61,23 +61,20 @@ def format_entry_summary(entry: dict) -> str:
 
 HELP_TEXT = """Comandos disponibles:
 
-  listar / listar gastos / ingresos / tareas / ideas / notas / recordatorios
+  listar  (o: listar gastos / ingresos / tareas / notas / recordatorios)
   listar hoy / mes
-
   total gastos / ingresos
   balance dia / semana / mes / total
-
   borrar <id>
   hecha <id>
   backup
 
-  recordatorio: 19/10 08:00 sacar la basura
-  balance diario: 23:00
-  gasto:/ingreso: ... #categoria (opcional, una palabra, en cualquier lugar: gasto: 5000 nafta #auto)
-  comida 7000 (sin "gasto:": si la palabra ya la usaste en un gasto o ingreso, Atlas sabe cuál es)
+Para anotar:
 
-  ayuda
-  salir"""
+  comida 7000
+  gasto: 5000 nafta #auto
+  ingreso: 30000 uber
+  tarea: comprar pan"""
 
 
 def format_saved_message(entry_type: str, entry: dict) -> str:
